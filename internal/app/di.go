@@ -2,11 +2,13 @@ package app
 
 import (
 	"database/sql"
+	"net/http"
 
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/handler/v1"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/handler/v2"
 	customMiddleware "github.com/cukiprit/api-sistem-alih-media-retensi/internal/middleware"
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v1"
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v1"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -24,6 +26,10 @@ func NewApplication(db *sql.DB) *App {
 	userService := services.NewServiceUser(userRepo)
 	userHandler := handler.NewUserHandler(userService)
 
+	pasienRepo := repositories.NewRepoPasien(db)
+	pasienService := services.NewServicePasien(pasienRepo)
+	PasienHandler := handler.NewPasienHandler(pasienService)
+
 	router := chi.NewRouter()
 
 	router.Use(
@@ -33,9 +39,13 @@ func NewApplication(db *sql.DB) *App {
 		customMiddleware.SecurityHeaders,
 	)
 
-	router.Route("/api/v1", func(r chi.Router) {
+	router.Route("/api/v2", func(r chi.Router) {
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			pkg.Success(w, "Miaw", nil)
+		})
 		userHandler.UserRoutes(r)
 		kasusHandler.KasusRoutes(r)
+		PasienHandler.PasienRoutes(r)
 	})
 
 	return &App{

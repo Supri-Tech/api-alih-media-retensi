@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/middleware"
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v1"
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v1"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
 )
@@ -21,12 +21,12 @@ func NewKasusHandler(service services.KasusService) *KasusHandler {
 }
 
 func (hdl *KasusHandler) KasusRoutes(router chi.Router) {
-
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.VerifyToken)
 
 		r.Get("/kasus", hdl.GetAll)
 		r.Get("/kasus/{id}", hdl.GetByID)
+		r.Get("/pasien/search", hdl.Search)
 		r.Post("/kasus", hdl.Create)
 		r.Put("/kasus/{id}", hdl.Update)
 		r.Delete("/kasus/{id}", hdl.Delete)
@@ -67,14 +67,40 @@ func (hdl *KasusHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	pkg.Success(w, "Data found", kasus)
 }
 
+func (hdl *KasusHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	limit, _ := strconv.Atoi(query.Get("limit"))
+
+	filter := services.KasusFilter{
+		JenisKasus: query.Get("JenisKasus"),
+		Limit:      limit,
+	}
+
+	if filter.JenisKasus == "" {
+		pkg.Error(w, http.StatusBadRequest, "At least one search parameter is required")
+		return
+	}
+
+	kasus, err := hdl.service.Search(r.Context(), filter)
+	if err != nil {
+		if err.Error() == "No kasus found" {
+			pkg.Error(w, http.StatusNotFound, err.Error())
+		} else {
+			pkg.Error(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	pkg.Success(w, "Data found", kasus)
+}
+
 func (hdl *KasusHandler) Create(w http.ResponseWriter, r *http.Request) {
 	type CreateKasus struct {
-		JenisKasus    string `json:"jenis_kasus"`
-		MasaAktifRi   int    `json:"masa_aktif_ri"`
-		MasaInaktifRi int    `json:"masa_inaktif_ri"`
-		MasaAktifRj   int    `json:"masa_aktif_rj"`
-		MasaInaktifRj int    `json:"masa_inaktif_rj"`
-		InfoLain      string `json:"info_lain"`
+		JenisKasus    string `json:"JenisKasus"`
+		MasaAktifRi   int    `json:"MasaAktifRi"`
+		MasaInaktifRi int    `json:"MasaInaktifRi"`
+		MasaAktifRj   int    `json:"MasaAktifRj"`
+		MasaInaktifRj int    `json:"MasaInaktifRj"`
+		InfoLain      string `json:"InfoLain"`
 	}
 
 	var req CreateKasus
@@ -110,12 +136,12 @@ func (hdl *KasusHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type UpdateKasus struct {
-		JenisKasus    string `json:"jenis_kasus"`
-		MasaAktifRi   int    `json:"masa_aktif_ri"`
-		MasaInaktifRi int    `json:"masa_inaktif_ri"`
-		MasaAktifRj   int    `json:"masa_aktif_rj"`
-		MasaInaktifRj int    `json:"masa_inaktif_rj"`
-		InfoLain      string `json:"info_lain"`
+		JenisKasus    string `json:"JenisKasus"`
+		MasaAktifRi   int    `json:"MasaAktifRi"`
+		MasaInaktifRi int    `json:"MasaInaktifRi"`
+		MasaAktifRj   int    `json:"MasaAktifRj"`
+		MasaInaktifRj int    `json:"MasaInaktifRj"`
+		InfoLain      string `json:"InfoLain"`
 	}
 
 	var req UpdateKasus

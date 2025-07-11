@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v1"
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v1"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 )
 

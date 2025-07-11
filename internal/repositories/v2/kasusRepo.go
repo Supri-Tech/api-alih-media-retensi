@@ -5,29 +5,30 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v1"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 )
 
 type KasusRepository interface {
 	GetAllKasus(ctx context.Context, limit, offset int) ([]*models.Kasus, error)
 	GetTotalKasus(ctx context.Context) (int, error)
 	GetKasusByID(ctx context.Context, id int) (*models.Kasus, error)
+	FindKasus(ctx context.Context, filter map[string]string) ([]*models.Kasus, error)
 	CreateKasus(ctx context.Context, kasus models.Kasus) (*models.Kasus, error)
 	UpdateKasus(ctx context.Context, kasus models.Kasus) (*models.Kasus, error)
 	DeleteKasus(ctx context.Context, id int) error
 }
 
-type kasusrepository struct {
+type kasusRepository struct {
 	db *sql.DB
 }
 
 func NewRepoKasus(db *sql.DB) KasusRepository {
-	return &kasusrepository{
+	return &kasusRepository{
 		db: db,
 	}
 }
 
-func (repo *kasusrepository) GetAllKasus(ctx context.Context, limit, offset int) ([]*models.Kasus, error) {
+func (repo *kasusRepository) GetAllKasus(ctx context.Context, limit, offset int) ([]*models.Kasus, error) {
 	query := `
 	SELECT Id, JenisKasus, MasaAktifRi, MasaInaktifRi, MasaAktifRj, MasaInaktifRj
 	FROM kasus
@@ -67,7 +68,7 @@ func (repo *kasusrepository) GetAllKasus(ctx context.Context, limit, offset int)
 	return kasus, nil
 }
 
-func (repo *kasusrepository) GetTotalKasus(ctx context.Context) (int, error) {
+func (repo *kasusRepository) GetTotalKasus(ctx context.Context) (int, error) {
 	query := `SELECT COUNT(*) FROM kasus`
 
 	var count int
@@ -78,7 +79,7 @@ func (repo *kasusrepository) GetTotalKasus(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (repo *kasusrepository) GetKasusByID(ctx context.Context, id int) (*models.Kasus, error) {
+func (repo *kasusRepository) GetKasusByID(ctx context.Context, id int) (*models.Kasus, error) {
 	query := `
 	SELECT Id, JenisKasus, MasaAktifRi, MasaInaktifRi, MasaAktifRj, MasaInaktifRj, InfoLain
 	FROM kasus
@@ -88,7 +89,15 @@ func (repo *kasusrepository) GetKasusByID(ctx context.Context, id int) (*models.
 
 	var kasus models.Kasus
 	row := repo.db.QueryRowContext(ctx, query, id)
-	err := row.Scan(&kasus.ID, &kasus.JenisKasus, &kasus.MasaAktifRI, &kasus.MasaInaktifRI, &kasus.MasaAktifRJ, &kasus.MasaInaktifRJ, &kasus.InfoLain)
+	err := row.Scan(
+		&kasus.ID,
+		&kasus.JenisKasus,
+		&kasus.MasaAktifRI,
+		&kasus.MasaInaktifRI,
+		&kasus.MasaAktifRJ,
+		&kasus.MasaInaktifRJ,
+		&kasus.InfoLain,
+	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -98,7 +107,58 @@ func (repo *kasusrepository) GetKasusByID(ctx context.Context, id int) (*models.
 	return &kasus, nil
 }
 
-func (repo *kasusrepository) CreateKasus(ctx context.Context, kasus models.Kasus) (*models.Kasus, error) {
+func (repo *kasusRepository) FindKasus(ctx context.Context, filter map[string]string) ([]*models.Kasus, error) {
+	query := `
+SELECT Id, JenisKasus, MasaAktifRi, MasaInaktifRi, MasaAktifRj, MasaInaktifRj, InfoLain
+	FROM kasus
+	WHERE id = ?
+	LIMIT 1
+	`
+
+	var args []interface{}
+	if jenisKasus, ok := filter["JenisKasus"]; ok {
+		query += " AND JenisKasus LIKE ?"
+		args = append(args, "%"+jenisKasus+"%")
+	}
+	if limit, ok := filter["Limit"]; ok {
+		query += " LIMIT ?"
+		args = append(args, limit)
+	} else {
+		query += " LIMIT 100"
+	}
+
+	rows, err := repo.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var kasus []*models.Kasus
+	for rows.Next() {
+		var k models.Kasus
+		err := rows.Scan(
+			&k.ID,
+			&k.JenisKasus,
+			&k.MasaAktifRI,
+			&k.MasaInaktifRI,
+			&k.MasaAktifRJ,
+			&k.MasaInaktifRJ,
+			&k.InfoLain,
+		)
+		if err != nil {
+			return nil, err
+		}
+		kasus = append(kasus, &k)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return kasus, nil
+}
+
+func (repo *kasusRepository) CreateKasus(ctx context.Context, kasus models.Kasus) (*models.Kasus, error) {
 	query := `
 	INSERT INTO kasus(JenisKasus, MasaAktifRi, MasaInaktifRi, MasaAktifRj, MasaInaktifRj, InfoLain)
 	VALUES (?, ?, ?, ?, ?, ?)
@@ -118,7 +178,7 @@ func (repo *kasusrepository) CreateKasus(ctx context.Context, kasus models.Kasus
 	return &kasus, nil
 }
 
-func (repo *kasusrepository) UpdateKasus(ctx context.Context, kasus models.Kasus) (*models.Kasus, error) {
+func (repo *kasusRepository) UpdateKasus(ctx context.Context, kasus models.Kasus) (*models.Kasus, error) {
 	query := `
 	UPDATE kasus
 	SET JenisKasus = ?, MasaAktifRI = ?, MasaInaktifRI = ?, MasaAktifRJ = ?, MasaInaktifRJ = ?, InfoLain = ?
@@ -133,7 +193,7 @@ func (repo *kasusrepository) UpdateKasus(ctx context.Context, kasus models.Kasus
 	return &kasus, nil
 }
 
-func (repo *kasusrepository) DeleteKasus(ctx context.Context, id int) error {
+func (repo *kasusRepository) DeleteKasus(ctx context.Context, id int) error {
 	query := `
 	DELETE FROM kasus
 	WHERE id = ?

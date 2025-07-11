@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v1"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 )
 
 type UserRepository interface {

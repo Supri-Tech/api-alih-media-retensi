@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/middleware"
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v1"
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v1"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
 )

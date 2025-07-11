@@ -4,16 +4,22 @@ import (
 	"context"
 	"errors"
 
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v1"
-	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v1"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
 )
 
 type KasusService interface {
 	GetAll(ctx context.Context, page, perPage int) (*KasusPagination, error)
 	GetByID(ctx context.Context, id int) (*models.Kasus, error)
+	Search(ctx context.Context, filter KasusFilter) ([]*models.Kasus, error)
 	Create(ctx context.Context, kasus models.Kasus) (*models.Kasus, error)
 	Update(ctx context.Context, kasus models.Kasus) (*models.Kasus, error)
 	Delete(ctx context.Context, id int) error
+}
+
+type KasusFilter struct {
+	JenisKasus string
+	Limit      int
 }
 
 type kasusService struct {
@@ -78,6 +84,24 @@ func (svc *kasusService) GetByID(ctx context.Context, id int) (*models.Kasus, er
 
 	if kasus == nil {
 		return nil, errors.New("Kasus not found")
+	}
+
+	return kasus, nil
+}
+
+func (svc *kasusService) Search(ctx context.Context, filter KasusFilter) ([]*models.Kasus, error) {
+	filterMap := make(map[string]string)
+	if filter.JenisKasus != "" {
+		filterMap["JenisKasus"] = filter.JenisKasus
+	}
+
+	kasus, err := svc.repo.FindKasus(ctx, filterMap)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(kasus) == 0 {
+		return nil, errors.New("No kasus found")
 	}
 
 	return kasus, nil
