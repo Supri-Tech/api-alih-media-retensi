@@ -28,5 +28,5 @@ jobs:
                   username: ${{ secrets.VPS_USER }}
                   key: ${{ secrets.VPS_SECRET }}
                   port: 22
-                  source: "app"
+                  source: "build/app"
                   target: "/var/www"
