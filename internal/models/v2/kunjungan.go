@@ -7,5 +7,14 @@ type Kunjungan struct {
 	IDPasien       int
 	IDKasus        int
 	TanggalMasuk   time.Time
-	JenisKunjungan time.Time
+	JenisKunjungan string
+}
+
+type KunjunganJoin struct {
+	ID         int
+	NamaPasien string
+	NoRM       string
+	TglLahir   time.Time
+	Alamat     string
+	JenisKasus string
 }

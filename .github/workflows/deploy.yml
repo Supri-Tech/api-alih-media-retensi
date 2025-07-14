@@ -1,0 +1,32 @@
+name: Build & Deploy
+
+on:
+    push:
+        branches: [main]
+
+jobs:
+    build-deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout node
+              uses: actions/checkout@v3
+
+            - name: Setup Go
+              uses: actions/setup-go@v4
+              with:
+                  go-version: "1.22"
+
+            - name: Build Go app
+              run: |
+                  go build -o ./build/app ./cmd/api
+
+            - name: Deploy to VPS via SSH
+              uses: appleboy/scp-action@v0.1.4
+              with:
+                  host: ${{ secrets.VPS_HOST }}
+                  username: ${{ secrets.VPS_USER }}
+                  key: ${{ secrets.VPS_SECRET }}
+                  port: 22
+                  source: "app"
+                  target: "/var/www"

@@ -41,7 +41,7 @@ func (repo *pasienRepository) GetAllPasien(ctx context.Context, limit, offset in
 	rows, err := repo.db.QueryContext(ctx, query, limit, offset)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, err
 		}
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (repo *pasienRepository) GetPasienByID(ctx context.Context, id int) (*model
 	query := `
 	SELECT Id, NoRM, NamaPasien, JenisKelamin, TglLahir, NIK, Alamat, Status, CreatedAt
 	FROM pasien
-	WHERE id = ?
+	WHERE Id = ?
 	LIMIT 1
 	`
 
@@ -310,7 +310,7 @@ func (repo *pasienRepository) UpdatePasien(ctx context.Context, pasien models.Pa
 		NIK = ?, 
 		Alamat = ?, 
 		Status = ?
-	WHERE id = ?
+	WHERE Id = ?
 	`
 
 	_, err := repo.db.ExecContext(ctx, query, pasien.NoRM, pasien.NamaPasien, pasien.JenisKelamin, pasien.TanggalLahir, pasien.NIK, pasien.Alamat, pasien.Status, pasien.ID)
@@ -324,7 +324,7 @@ func (repo *pasienRepository) UpdatePasien(ctx context.Context, pasien models.Pa
 func (repo *pasienRepository) DeletePasien(ctx context.Context, id int) error {
 	query := `
 	DELETE FROM kasus
-	WHERE id = ?
+	WHERE Id = ?
 	`
 
 	_, err := repo.db.ExecContext(ctx, query, id)

@@ -30,6 +30,10 @@ func NewApplication(db *sql.DB) *App {
 	pasienService := services.NewServicePasien(pasienRepo)
 	PasienHandler := handler.NewPasienHandler(pasienService)
 
+	kunjunganRepo := repositories.NewRepoKunjungan(db)
+	kunjunganService := services.NewServiceKunjungan(kunjunganRepo)
+	kunjunganHandler := handler.NewKunjunganHandler(kunjunganService)
+
 	router := chi.NewRouter()
 
 	router.Use(
@@ -46,6 +50,7 @@ func NewApplication(db *sql.DB) *App {
 		userHandler.UserRoutes(r)
 		kasusHandler.KasusRoutes(r)
 		PasienHandler.PasienRoutes(r)
+		kunjunganHandler.KunjunganRoutes(r)
 	})
 
 	return &App{
