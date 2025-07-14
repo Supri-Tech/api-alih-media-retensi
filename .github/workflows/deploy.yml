@@ -21,7 +21,7 @@ jobs:
               run: |
                   go build -o ./build/app ./cmd/api
 
-            - name: Deploy to VPS via SSH
+            - name: Upload binary to VPS
               uses: appleboy/scp-action@v0.1.4
               with:
                   host: ${{ secrets.VPS_HOST }}
@@ -29,4 +29,15 @@ jobs:
                   key: ${{ secrets.VPS_SECRET }}
                   port: 22
                   source: "build/app"
-                  target: "/var/www"
+                  target: "/home/supritech"
+
+            - name: Move binary to /var/www with sudo
+              uses: appleboy/ssh-action@master
+              with:
+                  host: ${{ secrets.VPS_HOST }}
+                  username: ${{ secrets.VPS_USER }}
+                  key: ${{ secrets.VPS_SECRET }}
+                  port: 22
+                  script: |
+                      sudo mv /home/supritech/app /var/www/app
+                      sudo chmod +x /var/www/app
