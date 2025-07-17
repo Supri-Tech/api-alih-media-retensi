@@ -31,26 +31,36 @@ func (hdl *UserHandler) UserRoutes(router chi.Router) {
 }
 
 func (hdl *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
-	email, password, ok := r.BasicAuth()
-	if !ok {
-		pkg.Error(w, http.StatusUnauthorized, "Authorization header missing or invalid")
+	type Login struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	var req Login
+	// email, password, ok := r.BasicAuth()
+	// if !ok {
+	// 	pkg.Error(w, http.StatusUnauthorized, "Authorization header missing or invalid")
+	// 	return
+	// }
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	token, err := hdl.service.Login(r.Context(), email, password)
+	token, err := hdl.service.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
 		pkg.Error(w, http.StatusUnauthorized, err.Error())
 		return
 	}
 
-	// http.SetCookie(w, &http.Cookie{
-	// 	Name:     "token",
-	// 	Value:    token,
-	// 	HttpOnly: true,
-	// 	Secure:   true,
-	// 	SameSite: http.SameSiteStrictMode,
-	// 	Path:     "/",
-	// })
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    token,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		Path:     "/",
+	})
 
 	pkg.Success(w, "Login success", token)
 }
