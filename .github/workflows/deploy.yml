@@ -39,5 +39,4 @@ jobs:
                   key: ${{ secrets.VPS_SECRET }}
                   port: 22
                   script: |
-                      sudo mv /home/supritech/build/app /var/www/app
-                      sudo chmod +x /var/www/app
+                      mv /home/supritech/build/app /var/www/api-alih-media/app
