@@ -27,7 +27,15 @@ func NewRepoKunjungan(db *sql.DB) KunjunganRepository {
 
 func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, offset int) ([]*models.KunjunganJoin, error) {
 	query := `
-	SELECT Id, pasien.NamaPasien AS NamaPasien, pasien.NoRM AS NoRM, pasien.TglLahir AS TglLahir, pasien.Alamat AS Alamat, kasus.JenisKasus AS JenisKasus
+	SELECT 
+		Id, 
+		pasien.NamaPasien AS NamaPasien, 
+		pasien.NoRM AS NoRM, 
+		pasien.TglLahir AS TglLahir, 
+		pasien.Alamat AS Alamat, 
+		kasus.JenisKasus AS JenisKasus
+	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
 	FROM kunjungan
 	LIMIT ? OFFSET ?
 	`

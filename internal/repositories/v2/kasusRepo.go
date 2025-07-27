@@ -100,7 +100,7 @@ func (repo *kasusRepository) GetKasusByID(ctx context.Context, id int) (*models.
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
+			return nil, err
 		}
 		return nil, err
 	}

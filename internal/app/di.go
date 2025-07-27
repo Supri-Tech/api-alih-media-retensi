@@ -11,6 +11,7 @@ import (
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 type App struct {
@@ -34,6 +35,10 @@ func NewApplication(db *sql.DB) *App {
 	kunjunganService := services.NewServiceKunjungan(kunjunganRepo)
 	kunjunganHandler := handler.NewKunjunganHandler(kunjunganService)
 
+	infoSistemRepo := repositories.NewRepoInfoSistem(db)
+	infoSistemService := services.InfoSistemService(infoSistemRepo)
+	InfoSistemHandler := handler.NewInfoSistemHandler(infoSistemService)
+
 	router := chi.NewRouter()
 
 	router.Use(
@@ -43,6 +48,10 @@ func NewApplication(db *sql.DB) *App {
 		customMiddleware.SecurityHeaders,
 	)
 
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins: []string{"http://localhost:5173"},
+	}))
+
 	router.Route("/api/v2", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			pkg.Success(w, "Miaw", nil)
@@ -51,6 +60,7 @@ func NewApplication(db *sql.DB) *App {
 		kasusHandler.KasusRoutes(r)
 		PasienHandler.PasienRoutes(r)
 		kunjunganHandler.KunjunganRoutes(r)
+		InfoSistemHandler.InfoSistemRoutes(r)
 	})
 
 	return &App{
