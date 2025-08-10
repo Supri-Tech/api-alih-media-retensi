@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
@@ -9,6 +10,10 @@ import (
 
 type KunjunganService interface {
 	GetAll(ctx context.Context, page, perPage int) (*KunjunganPagination, error)
+	GetByID(ctx context.Context, id int) (*models.KunjunganJoin, error)
+	Create(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
+	Update(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
+	Delete(ctx context.Context, id int) error
 }
 
 type kunjunganService struct {
@@ -59,4 +64,62 @@ func (svc *kunjunganService) GetAll(ctx context.Context, page, perPage int) (*Ku
 		PerPage:    perPage,
 		TotalPages: totalPages,
 	}, nil
+}
+
+func (svc *kunjunganService) GetByID(ctx context.Context, id int) (*models.KunjunganJoin, error) {
+	if id <= 0 {
+		return nil, errors.New("ID must can't be negative")
+	}
+
+	kunjungan, err := svc.repo.GetKunjunganByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if kunjungan == nil {
+		return nil, errors.New("Kunjungan not found")
+	}
+
+	return kunjungan, nil
+}
+
+func (svc *kunjunganService) Create(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error) {
+	newKunjungan, err := svc.repo.CreateKunjungan(ctx, &kunjungan)
+	if err != nil {
+		return nil, err
+	}
+
+	return newKunjungan, nil
+}
+
+func (svc *kunjunganService) Update(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error) {
+	existing, err := svc.repo.GetKunjunganByID(ctx, kunjungan.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	if existing == nil {
+		return nil, errors.New("Kunjungan not found")
+	}
+
+	newKunjungan, err := svc.repo.UpdateKunjungan(ctx, kunjungan)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return newKunjungan, nil
+}
+
+func (svc *kunjunganService) Delete(ctx context.Context, id int) error {
+	existing, err := svc.repo.GetKunjunganByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if existing == nil {
+		return errors.New("Pasien not found")
+	}
+
+	return svc.repo.DeleteKunjungan(ctx, id)
 }

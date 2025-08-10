@@ -12,7 +12,9 @@ type KunjunganRepository interface {
 	GetAllKunjungan(ctx context.Context, limit, offset int) ([]*models.KunjunganJoin, error)
 	GetTotalKunjungan(ctx context.Context) (int, error)
 	GetKunjunganByID(ctx context.Context, id int) (*models.KunjunganJoin, error)
-	CreateKunjungna(ctx context.Context, kunjungan *models.Kunjungan) (*models.Kunjungan, error)
+	CreateKunjungan(ctx context.Context, kunjungan *models.Kunjungan) (*models.Kunjungan, error)
+	UpdateKunjungan(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
+	DeleteKunjungan(ctx context.Context, id int) error
 }
 
 type kunjunganRepository struct {
@@ -111,9 +113,9 @@ func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (
 	return &kunjungan, nil
 }
 
-func (repo *kunjunganRepository) CreateKunjungna(ctx context.Context, kunjungan *models.Kunjungan) (*models.Kunjungan, error) {
+func (repo *kunjunganRepository) CreateKunjungan(ctx context.Context, kunjungan *models.Kunjungan) (*models.Kunjungan, error) {
 	query := `
-	INSERT INTO kunjungan(Id, IdPasien, IdKasus, TanggalMasuk, JenisKunjungan)
+	INSERT INTO kunjungan(IdPasien, IdKasus, TanggalMasuk, JenisKunjungan)
 	VALUES (?,?,?,?,?)
 	`
 
@@ -139,4 +141,33 @@ func (repo *kunjunganRepository) CreateKunjungna(ctx context.Context, kunjungan 
 	kunjungan.ID = int(id)
 
 	return kunjungan, nil
+}
+
+func (repo *kunjunganRepository) UpdateKunjungan(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error) {
+	query := `
+	UPDATE kunjungan
+	SET IdPasien = ?, IdKasus = ?, TglMasuk = ?, JenisKunjungan = ?
+	WHERE Id = ?
+	`
+
+	_, err := repo.db.ExecContext(ctx, query, kunjungan.IDPasien, kunjungan.IDKasus, kunjungan.TanggalMasuk, kunjungan.JenisKunjungan, kunjungan.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &kunjungan, nil
+}
+
+func (repo *kunjunganRepository) DeleteKunjungan(ctx context.Context, id int) error {
+	query := `
+	DELETE FROM kunjungan
+	WHERE Id = ?
+	`
+
+	_, err := repo.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

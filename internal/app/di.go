@@ -39,6 +39,10 @@ func NewApplication(db *sql.DB) *App {
 	infoSistemService := services.InfoSistemService(infoSistemRepo)
 	InfoSistemHandler := handler.NewInfoSistemHandler(infoSistemService)
 
+	aliMediaRepo := repositories.NewRepoAlihMedia(db)
+	alihMediaService := services.NewServiceAlihMedia(aliMediaRepo)
+	alihMediaHandler := handler.NewAlihMediaHandler(alihMediaService)
+
 	router := chi.NewRouter()
 
 	router.Use(
@@ -61,6 +65,7 @@ func NewApplication(db *sql.DB) *App {
 		PasienHandler.PasienRoutes(r)
 		kunjunganHandler.KunjunganRoutes(r)
 		InfoSistemHandler.InfoSistemRoutes(r)
+		alihMediaHandler.AlihMediaRoutes(r)
 	})
 
 	return &App{
