@@ -14,11 +14,12 @@ import (
 )
 
 type KunjunganHandler struct {
-	service services.KunjunganService
+	service        services.KunjunganService
+	dokumenService services.DokumenService
 }
 
-func NewKunjunganHandler(service services.KunjunganService) *KunjunganHandler {
-	return &KunjunganHandler{service: service}
+func NewKunjunganHandler(service services.KunjunganService, dokumenService services.DokumenService) *KunjunganHandler {
+	return &KunjunganHandler{service: service, dokumenService: dokumenService}
 }
 
 func (hdl *KunjunganHandler) KunjunganRoutes(router chi.Router) {
@@ -65,24 +66,21 @@ func (hdl *KunjunganHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hdl *KunjunganHandler) Create(w http.ResponseWriter, r *http.Request) {
-	type CreateKunjungan struct {
-		IDPasien       int       `json:"IdPasien"`
-		IDKasus        int       `json:"IdKasus"`
-		TanggalMasuk   time.Time `json:"TglMasuk"`
-		JenisKunjungan string    `json:"JenisKunjungan"`
-	}
+	idPasien, _ := strconv.Atoi(r.FormValue("IdPasien"))
+	idKasus, _ := strconv.Atoi(r.FormValue("IdKasus"))
+	jenisKunjungan := r.FormValue("JenisKunjungan")
 
-	var req CreateKunjungan
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		pkg.Error(w, http.StatusBadRequest, "Invalid request body")
+	tanggalMasuk, err := time.Parse("2006-01-02", r.FormValue("TglMasuk"))
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Invalid TglMasuk format, must be YYYY-MM-DD")
 		return
 	}
 
 	kunjungan := models.Kunjungan{
-		IDPasien:       req.IDPasien,
-		IDKasus:        req.IDKasus,
-		TanggalMasuk:   req.TanggalMasuk,
-		JenisKunjungan: req.JenisKunjungan,
+		IDPasien:       idPasien,
+		IDKasus:        idKasus,
+		TanggalMasuk:   tanggalMasuk,
+		JenisKunjungan: jenisKunjungan,
 	}
 
 	newKunjungan, err := hdl.service.Create(r.Context(), kunjungan)
@@ -91,8 +89,49 @@ func (hdl *KunjunganHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	file, header, err := r.FormFile("File")
+	if err == nil {
+		defer file.Close()
+
+		_, err := hdl.dokumenService.UploadDokumen(r.Context(), newKunjungan.ID, file, header)
+		if err != nil {
+			pkg.Error(w, http.StatusInternalServerError, "Kunjungan created but failed to upload file: "+err.Error())
+			return
+		}
+	}
+
 	pkg.Success(w, "Pasien created", newKunjungan)
 }
+
+// func (hdl *KunjunganHandler) Create(w http.ResponseWriter, r *http.Request) {
+// 	type CreateKunjungan struct {
+// 		IDPasien       int       `json:"IdPasien"`
+// 		IDKasus        int       `json:"IdKasus"`
+// 		TanggalMasuk   time.Time `json:"TglMasuk"`
+// 		JenisKunjungan string    `json:"JenisKunjungan"`
+// 	}
+//
+// 	var req CreateKunjungan
+// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+// 		pkg.Error(w, http.StatusBadRequest, "Invalid request body")
+// 		return
+// 	}
+//
+// 	kunjungan := models.Kunjungan{
+// 		IDPasien:       req.IDPasien,
+// 		IDKasus:        req.IDKasus,
+// 		TanggalMasuk:   req.TanggalMasuk,
+// 		JenisKunjungan: req.JenisKunjungan,
+// 	}
+//
+// 	newKunjungan, err := hdl.service.Create(r.Context(), kunjungan)
+// 	if err != nil {
+// 		pkg.Error(w, http.StatusBadRequest, err.Error())
+// 		return
+// 	}
+//
+// 	pkg.Success(w, "Pasien created", newKunjungan)
+// }
 
 func (hdl *KunjunganHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
