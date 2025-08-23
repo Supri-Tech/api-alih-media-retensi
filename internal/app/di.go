@@ -31,9 +31,12 @@ func NewApplication(db *sql.DB) *App {
 	pasienService := services.NewServicePasien(pasienRepo)
 	PasienHandler := handler.NewPasienHandler(pasienService)
 
+	dokumenRepo := repositories.NewRepoDokumen(db)
+	dokumenService := services.NewServiceDokumen(dokumenRepo)
+
 	kunjunganRepo := repositories.NewRepoKunjungan(db)
 	kunjunganService := services.NewServiceKunjungan(kunjunganRepo)
-	kunjunganHandler := handler.NewKunjunganHandler(kunjunganService)
+	kunjunganHandler := handler.NewKunjunganHandler(kunjunganService, dokumenService)
 
 	infoSistemRepo := repositories.NewRepoInfoSistem(db)
 	infoSistemService := services.InfoSistemService(infoSistemRepo)

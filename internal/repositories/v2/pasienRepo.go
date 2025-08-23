@@ -323,7 +323,7 @@ func (repo *pasienRepository) UpdatePasien(ctx context.Context, pasien models.Pa
 
 func (repo *pasienRepository) DeletePasien(ctx context.Context, id int) error {
 	query := `
-	DELETE FROM kasus
+	DELETE FROM pasien
 	WHERE Id = ?
 	`
 
