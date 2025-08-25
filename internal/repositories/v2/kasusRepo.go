@@ -83,7 +83,7 @@ func (repo *kasusRepository) GetKasusByID(ctx context.Context, id int) (*models.
 	query := `
 	SELECT Id, JenisKasus, MasaAktifRi, MasaInaktifRi, MasaAktifRj, MasaInaktifRj, InfoLain
 	FROM kasus
-	WHERE id = ?
+	WHERE Id = ?
 	LIMIT 1
 	`
 
@@ -111,8 +111,7 @@ func (repo *kasusRepository) FindKasus(ctx context.Context, filter map[string]st
 	query := `
 	SELECT Id, JenisKasus, MasaAktifRi, MasaInaktifRi, MasaAktifRj, MasaInaktifRj, InfoLain
 	FROM kasus
-	WHERE Id = ?
-	LIMIT 1
+	WHERE 1=1
 	`
 
 	var args []interface{}
