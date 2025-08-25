@@ -109,9 +109,9 @@ func (repo *kasusRepository) GetKasusByID(ctx context.Context, id int) (*models.
 
 func (repo *kasusRepository) FindKasus(ctx context.Context, filter map[string]string) ([]*models.Kasus, error) {
 	query := `
-SELECT Id, JenisKasus, MasaAktifRi, MasaInaktifRi, MasaAktifRj, MasaInaktifRj, InfoLain
+	SELECT Id, JenisKasus, MasaAktifRi, MasaInaktifRi, MasaAktifRj, MasaInaktifRj, InfoLain
 	FROM kasus
-	WHERE id = ?
+	WHERE Id = ?
 	LIMIT 1
 	`
 
