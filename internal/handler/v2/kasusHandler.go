@@ -25,8 +25,8 @@ func (hdl *KasusHandler) KasusRoutes(router chi.Router) {
 		r.Use(middleware.VerifyToken)
 
 		r.Get("/kasus", hdl.GetAll)
-		r.Get("/kasus/{id}", hdl.GetByID)
 		r.Get("/kasus/search", hdl.Search)
+		r.Get("/kasus/{id}", hdl.GetByID)
 		r.Post("/kasus", hdl.Create)
 		r.Put("/kasus/{id}", hdl.Update)
 		r.Delete("/kasus/{id}", hdl.Delete)

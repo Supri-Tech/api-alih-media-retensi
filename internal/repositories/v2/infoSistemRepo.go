@@ -101,7 +101,7 @@ func (repo *infoSistemRepository) UpdateInfoSistem(ctx context.Context, infoSist
 	WHERE Id = ?
 	`
 
-	_, err := repo.db.ExecContext(ctx, query, infoSistem.NamaAplikasi, infoSistem.NamaAplikasi, infoSistem.UpdatedAt, infoSistem.ID)
+	_, err := repo.db.ExecContext(ctx, query, infoSistem.NamaAplikasi, infoSistem.Logo, infoSistem.UpdatedAt, infoSistem.ID)
 	if err != nil {
 		return nil, err
 	}

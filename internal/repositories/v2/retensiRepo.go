@@ -60,6 +60,8 @@ func (repo *retensiRepository) GetAllRetensi(ctx context.Context, limit, offset 
 		kasus
 	ON
 		kasus.Id = retensi.Id
+	LIMIT ?
+	OFFSET ?
 	`
 
 	rows, err := repo.db.QueryContext(ctx, query, limit, offset)

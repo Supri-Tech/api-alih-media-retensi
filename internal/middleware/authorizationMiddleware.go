@@ -34,6 +34,12 @@ func VerifyToken(next http.Handler) http.Handler {
 			return
 		}
 
+		status, ok := claims["status"].(string)
+		if !ok || status == "" {
+			pkg.Error(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
 		role, ok := claims["role"].(string)
 		if !ok || role == "" {
 			pkg.Error(w, http.StatusUnauthorized, "Invalid token")
@@ -43,6 +49,7 @@ func VerifyToken(next http.Handler) http.Handler {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "email", email)
 		ctx = context.WithValue(ctx, "role", role)
+		ctx = context.WithValue(ctx, "status", status)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

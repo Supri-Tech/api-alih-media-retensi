@@ -24,6 +24,49 @@ func NewRepoUser(db *sql.DB) UserRepository {
 	}
 }
 
+func (repo *userrepository) GetAllUsers(ctx context.Context, limit, offset int) ([]*models.User, error) {
+	query := `
+	SELECT
+		Id, Name, Email, Role, Status, CreatedAt
+	FROM
+		users
+	LIMIT ?
+	OFFSET ?
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Email,
+			&user.Role,
+			&user.Status,
+			&user.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return users, nil
+}
+
 func (repo *userrepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	query := `
 	SELECT id, name, email, password, role, status

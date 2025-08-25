@@ -26,9 +26,9 @@ func (hdl *PasienHandler) PasienRoutes(router chi.Router) {
 		r.Use(middleware.VerifyToken)
 
 		r.Get("/pasien", hdl.GetAll)
+		r.Get("/pasien/search", hdl.Search)
 		r.Get("/pasien/{id}", hdl.GetByID)
 		r.Post("/pasien", hdl.Create)
-		r.Get("/pasien/search", hdl.Search)
 		r.Put("/pasien/{id}", hdl.Update)
 		r.Delete("/pasien/{id}", hdl.Delete)
 	})

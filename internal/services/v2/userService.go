@@ -33,7 +33,7 @@ func (svc *userService) Login(ctx context.Context, email, password string) (stri
 		return "", errors.New("Invalid credentials")
 	}
 
-	token, err := pkg.CreateToken(user.Email, user.Role)
+	token, err := pkg.CreateToken(user.Email, user.Status, user.Role)
 	if err != nil {
 		return "", err
 	}

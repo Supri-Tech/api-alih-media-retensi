@@ -9,11 +9,12 @@ import (
 
 var secret = []byte(os.Getenv("JWT_SECRET"))
 
-func CreateToken(email, role string) (string, error) {
+func CreateToken(email, status, role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
-		"email": email,
-		"role":  role,
-		"exp":   time.Now().Add(time.Hour * 24).Unix(),
+		"email":  email,
+		"role":   role,
+		"status": status,
+		"exp":    time.Now().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenStr, err := token.SignedString(secret)
