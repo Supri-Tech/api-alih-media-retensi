@@ -29,3 +29,9 @@ type AlihMediaJoin struct {
 	MasaInaktifRj  int
 	InfoLain       string
 }
+
+type AlihMediaStats struct {
+	Total   int
+	Aktif   int
+	Inaktif int
+}

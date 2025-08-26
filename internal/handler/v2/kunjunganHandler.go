@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
+	"github.com/xuri/excelize/v2"
 )
 
 type KunjunganHandler struct {
@@ -100,7 +100,7 @@ func (hdl *KunjunganHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	pkg.Success(w, "Pasien created", newKunjungan)
+	pkg.Success(w, "Kunjungan created", newKunjungan)
 }
 
 // func (hdl *KunjunganHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -141,25 +141,22 @@ func (hdl *KunjunganHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type UpdateKunjungan struct {
-		IDPasien       int       `json:"IdPasien"`
-		IDKasus        int       `json:"IdKasus"`
-		TanggalMasuk   time.Time `json:"TglMasuk"`
-		JenisKunjungan string    `json:"JenisKunjungan"`
-	}
+	idPasien, _ := strconv.Atoi(r.FormValue("IdPasien"))
+	idKasus, _ := strconv.Atoi(r.FormValue("IdKasus"))
+	jenisKunjungan := r.FormValue("JenisKunjungan")
 
-	var req UpdateKunjungan
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		pkg.Error(w, http.StatusBadRequest, "Invalid request body")
+	tanggalMasuk, err := time.Parse("2006-01-02", r.FormValue("TglMasuk"))
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Invalid TglMasuk format, must be YYYY-MM-DD")
 		return
 	}
 
 	kunjungan := models.Kunjungan{
 		ID:             id,
-		IDPasien:       req.IDPasien,
-		IDKasus:        req.IDKasus,
-		TanggalMasuk:   req.TanggalMasuk,
-		JenisKunjungan: req.JenisKunjungan,
+		IDPasien:       idPasien,
+		IDKasus:        idKasus,
+		TanggalMasuk:   tanggalMasuk,
+		JenisKunjungan: jenisKunjungan,
 	}
 
 	updatedKunjungan, err := hdl.service.Update(r.Context(), kunjungan)
@@ -168,7 +165,18 @@ func (hdl *KunjunganHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pkg.Success(w, "Pasien updated", updatedKunjungan)
+	file, header, err := r.FormFile("File")
+	if err == nil {
+		defer file.Close()
+
+		_, err := hdl.dokumenService.UpdateDokumen(r.Context(), id, file, header)
+		if err != nil {
+			pkg.Error(w, http.StatusInternalServerError, "Kunjungan updated but failed to upload file: "+err.Error())
+			return
+		}
+	}
+
+	pkg.Success(w, "Kunjungan updated", updatedKunjungan)
 }
 
 func (hdl *KunjunganHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -181,6 +189,11 @@ func (hdl *KunjunganHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	if err := hdl.service.Delete(r.Context(), id); err != nil {
 		pkg.Error(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err := hdl.dokumenService.DeleteDokumen(r.Context(), id); err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to delete dokumen: "+err.Error())
 		return
 	}
 

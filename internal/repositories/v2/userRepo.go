@@ -9,8 +9,11 @@ import (
 )
 
 type UserRepository interface {
+	GetAllUsers(ctx context.Context, limit, offset int) ([]*models.User, error)
+	GetTotalUsers(ctx context.Context) (int, error)
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
 	Create(ctx context.Context, user models.User) (*models.User, error)
+	UpdateData(ctx context.Context, user models.User) (*models.User, error)
 	UpdateStatus(ctx context.Context, user models.User) (*models.User, error)
 }
 
@@ -67,6 +70,18 @@ func (repo *userrepository) GetAllUsers(ctx context.Context, limit, offset int) 
 	return users, nil
 }
 
+func (repo *userrepository) GetTotalUsers(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM users`
+
+	var count int
+	err := repo.db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (repo *userrepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	query := `
 	SELECT id, name, email, password, role, status
@@ -106,6 +121,22 @@ func (repo *userrepository) Create(ctx context.Context, user models.User) (*mode
 
 	user.ID = int(id)
 	return &user, nil
+}
+
+func (repo *userrepository) UpdateData(ctx context.Context, user models.User) (*models.User, error) {
+	query := `
+	UPDATE users 
+	SET Name = ?, Email = ?, Role = ?, Status = ?
+	WHERE email = ?
+	LIMIT 1
+	`
+
+	_, err := repo.db.ExecContext(ctx, query, user.Status, user.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	return repo.GetByUsername(ctx, user.Email)
 }
 
 func (repo *userrepository) UpdateStatus(ctx context.Context, user models.User) (*models.User, error) {

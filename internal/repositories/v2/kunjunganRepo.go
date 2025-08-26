@@ -115,14 +115,13 @@ func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (
 
 func (repo *kunjunganRepository) CreateKunjungan(ctx context.Context, kunjungan *models.Kunjungan) (*models.Kunjungan, error) {
 	query := `
-	INSERT INTO kunjungan(IdPasien, IdKasus, TanggalMasuk, JenisKunjungan)
-	VALUES (?,?,?,?,?)
+	INSERT INTO kunjungan(IdPasien, IdKasus, TglMasuk, JenisKunjungan)
+	VALUES (?,?,?,?)
 	`
 
 	result, err := repo.db.ExecContext(
 		ctx,
 		query,
-		&kunjungan.ID,
 		&kunjungan.IDPasien,
 		&kunjungan.IDKasus,
 		&kunjungan.TanggalMasuk,
