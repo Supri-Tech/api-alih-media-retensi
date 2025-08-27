@@ -11,7 +11,6 @@ import (
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
-	"github.com/xuri/excelize/v2"
 )
 
 type PasienHandler struct {

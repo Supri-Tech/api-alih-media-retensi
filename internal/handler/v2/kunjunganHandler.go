@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
-	"github.com/xuri/excelize/v2"
 )
 
 type KunjunganHandler struct {
@@ -40,6 +40,7 @@ func (hdl *KunjunganHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	kunjungan, err := hdl.service.GetAll(r.Context(), page, perPage)
 	if err != nil {
+		fmt.Printf("Error: %s", err)
 		pkg.Error(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
