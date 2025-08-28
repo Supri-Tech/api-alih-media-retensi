@@ -29,16 +29,28 @@ func NewRepoKunjungan(db *sql.DB) KunjunganRepository {
 
 func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, offset int) ([]*models.KunjunganJoin, error) {
 	query := `
-	SELECT 
-		kunjungan.Id, 
-		pasien.NamaPasien AS NamaPasien, 
-		pasien.NoRM AS NoRM, 
-		pasien.TglLahir AS TglLahir, 
-		pasien.Alamat AS Alamat, 
-		kasus.JenisKasus AS JenisKasus
+	SELECT
+		kunjungan.Id,
+		pasien.NamaPasien AS NamaPasien,
+		pasien.NoRM AS NoRM,
+		pasien.NIK AS NIK,
+		pasien.JenisKelamin AS JenisKelamin,
+		pasien.TglLahir AS TglLahir,
+		pasien.Alamat AS Alamat,
+		pasien.Status AS Status,
+		kunjungan.TglMasuk AS TglMasuk,
+		kunjungan.JenisKunjungan AS JenisKunjungan,
+		kasus.JenisKasus AS JenisKasus,
+		kasus.MasaAktifRi AS MasaAktifRi,
+		kasus.MasaInaktifRi AS MasaInaktifRi,
+		kasus.MasaAktifRj AS MasaAktifRj,
+		kasus.MasaInaktifRj AS MasaInaktifRj,
+		kasus.InfoLain AS InfoLain,
+		dokumen.Path AS path
 	FROM kunjungan
 	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
 	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	INNER JOIN dokumen ON dokumen.IdKunjungan = kunjungan.Id
 	LIMIT ? OFFSET ?
 	`
 
@@ -58,9 +70,20 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 			&k.ID,
 			&k.NamaPasien,
 			&k.NoRM,
+			&k.NIK,
+			&k.JenisKelamin,
 			&k.TglLahir,
 			&k.Alamat,
+			&k.Status,
+			&k.TglMasuk,
+			&k.JenisKunjungan,
 			&k.JenisKasus,
+			&k.MasaAktifRi,
+			&k.MasaInaktifRi,
+			&k.MasaAktifRj,
+			&k.MasaInaktifRj,
+			&k.InfoLain,
+			&k.Dokumen,
 		)
 		if err != nil {
 			return nil, err
@@ -88,9 +111,17 @@ func (repo *kunjunganRepository) GetTotalKunjungan(ctx context.Context) (int, er
 
 func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (*models.KunjunganJoin, error) {
 	query := `
-	SELECT Id, pasien.NamaPasien AS NamaPasien, pasien.NoRM AS NoRM, pasien.TglLahir AS TglLahir, pasien.Alamat AS Alamat, kasus.JenisKasus AS JenisKasus
+	SELECT 
+		kunjungan.Id, 
+		pasien.NamaPasien AS NamaPasien, 
+		pasien.NoRM AS NoRM, 
+		pasien.TglLahir AS TglLahir, 
+		pasien.Alamat AS Alamat, 
+		kasus.JenisKasus AS JenisKasus
 	FROM kunjungan
-	WHERE Id = ?
+	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	WHERE kunjungan.Id = ?
 	LIMIT 1
 	`
 	var kunjungan models.KunjunganJoin

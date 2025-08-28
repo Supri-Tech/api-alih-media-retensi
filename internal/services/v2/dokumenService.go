@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -47,8 +49,12 @@ func (svc *dokumenService) UploadDokumen(ctx context.Context, idKunjungan int, f
 		return nil, err
 	}
 
-	if _, err := dst.ReadFrom(file); err != nil {
-		return nil, fmt.Errorf("failed to save file: %w", err)
+	// if _, err := dst.ReadFrom(file); err != nil {
+	// 	return nil, fmt.Errorf("failed to save file: %w", err)
+	// }
+
+	if _, err := io.Copy(dst, file); err != nil {
+		return nil, fmt.Errorf("Failed to save file: %w", err)
 	}
 
 	dokumen := models.Dokumen{
@@ -89,19 +95,26 @@ func (svc *dokumenService) UpdateDokumen(ctx context.Context, id int, file multi
 	if _, err := file.Seek(0, 0); err != nil {
 		return nil, err
 	}
-	if _, err := dst.ReadFrom(file); err != nil {
-		return nil, fmt.Errorf("failed to save file: %w", err)
+	// if _, err := dst.ReadFrom(file); err != nil {
+	// 	return nil, fmt.Errorf("failed to save file: %w", err)
+	// }
+
+	if _, err := io.Copy(dst, file); err != nil {
+		return nil, fmt.Errorf("Failed to save file: %w", err)
 	}
 
 	existing.Nama = header.Filename
 	existing.Path = filePath
 
-	return svc.repo.CreateDokumen(ctx, *existing)
+	return svc.repo.UpdateDokumen(ctx, *existing)
 }
 
 func (svc *dokumenService) DeleteDokumen(ctx context.Context, id int) error {
 	existing, err := svc.repo.GetDokumenByID(ctx, id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		return err
 	}
 

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -94,11 +95,16 @@ func (hdl *KunjunganHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		defer file.Close()
 
-		_, err := hdl.dokumenService.UploadDokumen(r.Context(), newKunjungan.ID, file, header)
+		log.Printf("Uploading file: %s for kunjungan ID: %d", header.Filename, newKunjungan.ID)
+
+		uploaded, err := hdl.dokumenService.UploadDokumen(r.Context(), newKunjungan.ID, file, header)
 		if err != nil {
+			log.Printf("UploadDokumen error: %v", err)
 			pkg.Error(w, http.StatusInternalServerError, "Kunjungan created but failed to upload file: "+err.Error())
 			return
 		}
+
+		log.Printf("File uploaded successfully: %+v", uploaded)
 	}
 
 	pkg.Success(w, "Kunjungan created", newKunjungan)
@@ -188,13 +194,13 @@ func (hdl *KunjunganHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := hdl.service.Delete(r.Context(), id); err != nil {
-		pkg.Error(w, http.StatusInternalServerError, err.Error())
+	if err := hdl.dokumenService.DeleteDokumen(r.Context(), id); err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to delete dokumen: "+err.Error())
 		return
 	}
 
-	if err := hdl.dokumenService.DeleteDokumen(r.Context(), id); err != nil {
-		pkg.Error(w, http.StatusInternalServerError, "Failed to delete dokumen: "+err.Error())
+	if err := hdl.service.Delete(r.Context(), id); err != nil {
+		pkg.Error(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

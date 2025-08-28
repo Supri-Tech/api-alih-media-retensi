@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"log"
 	"time"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
@@ -27,12 +28,14 @@ func NewRepoDokumen(db *sql.DB) DokumenRepository {
 
 func (repo *dokumenRepository) CreateDokumen(ctx context.Context, dokumen models.Dokumen) (*models.Dokumen, error) {
 	query := `
-	INSERT INTO dokumen(IdKunjungan, Nama, Path)
-	VALUES (?,?,?)
+	INSERT INTO dokumen(IdKunjungan, Nama, Path, CreatedAt)
+	VALUES (?,?,?,?)
 	`
 
+	log.Printf("Test")
+
 	dokumen.CreatedAt = time.Now()
-	result, err := repo.db.ExecContext(ctx, query, dokumen.IDKunjungan, dokumen.Nama, dokumen.Path)
+	result, err := repo.db.ExecContext(ctx, query, dokumen.IDKunjungan, dokumen.Nama, dokumen.Path, dokumen.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +60,7 @@ func (repo *dokumenRepository) GetDokumenByID(ctx context.Context, id int) (*mod
 	FROM
 		dokumen
 	WHERE
-		Id = ?
+		IdKunjungan = ?
 	LIMIT 1
 	`
 
@@ -81,10 +84,10 @@ func (repo *dokumenRepository) UpdateDokumen(ctx context.Context, dokumen models
 	query := `
 	UPDATE dokumen
 	SET Nama = ?, Path = ?
-	Where Id = ?
+	Where IdKunjungan = ?
 	`
 
-	_, err := repo.db.ExecContext(ctx, query, dokumen.Nama, dokumen.Path, dokumen.ID)
+	_, err := repo.db.ExecContext(ctx, query, dokumen.Nama, dokumen.Path, dokumen.IDKunjungan)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +96,7 @@ func (repo *dokumenRepository) UpdateDokumen(ctx context.Context, dokumen models
 }
 
 func (repo *dokumenRepository) DeleteDokumen(ctx context.Context, id int) error {
-	query := `DELETE FROM dokumen WHERE Id = ?`
+	query := `DELETE FROM dokumen WHERE IdKunjungan = ?`
 	_, err := repo.db.ExecContext(ctx, query, id)
 
 	return err
