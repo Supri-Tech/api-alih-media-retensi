@@ -1,11 +1,17 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"time"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
+	"github.com/xuri/excelize/v2"
 )
 
 type PasienService interface {
@@ -18,6 +24,8 @@ type PasienService interface {
 	Create(ctx context.Context, pasien models.Pasien) (*models.Pasien, error)
 	Update(ctx context.Context, pasien models.Pasien) (*models.Pasien, error)
 	Delete(ctx context.Context, id int) error
+	Import(ctx context.Context, filePath string) error
+	Export(ctx context.Context, filter PasienFilter) ([]byte, error)
 }
 
 type PasienFilter struct {
@@ -207,4 +215,115 @@ func (svc *pasienService) Delete(ctx context.Context, id int) error {
 	}
 
 	return svc.repo.DeletePasien(ctx, id)
+}
+
+func (svc *pasienService) Import(ctx context.Context, filepath string) error {
+	f, err := excelize.OpenFile(filepath)
+	if err != nil {
+		return fmt.Errorf("Failed to open Excel file: %v", err)
+	}
+	defer f.Close()
+
+	rows, err := f.GetRows("Worksheet")
+	if err != nil {
+		return fmt.Errorf("Failed to get rows: %v", err)
+	}
+
+	for i := 4; i < len(rows); i++ {
+		if len(rows[i]) < 6 {
+			continue
+		}
+
+		pasien := models.Pasien{
+			NoRM:         rows[i][0],
+			NamaPasien:   rows[i][1],
+			JenisKelamin: rows[i][2],
+			TanggalLahir: pkg.ParseDate(rows[i][3]),
+			NIK:          rows[i][4],
+			Alamat:       rows[i][5],
+			Status:       rows[i][6],
+			CreatedAt:    time.Now(),
+		}
+
+		existing, err := svc.repo.GetPasienByNoRM(ctx, pasien.NoRM)
+		if err != nil || existing == nil {
+			_, err := svc.repo.CreatePasien(ctx, pasien)
+			if err != nil {
+				log.Printf("Failed to create pasien %s: %v", pasien.NoRM, err)
+			}
+		} else {
+			pasien.ID = existing.ID
+			_, err := svc.repo.UpdatePasien(ctx, pasien)
+			if err != nil {
+				log.Printf("Failed to update pasien %s: %v", pasien.NoRM, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (svc *pasienService) Export(ctx context.Context, filter PasienFilter) ([]byte, error) {
+	filterMap := make(map[string]string)
+	if filter.NoRM != "" {
+		filterMap["NoRM"] = filter.NoRM
+	}
+	if filter.NamaPasien != "" {
+		filterMap["NamaPasien"] = filter.NamaPasien
+	}
+	if filter.NIK != "" {
+		filterMap["NIK"] = filter.NIK
+	}
+
+	pasiens, err := svc.repo.FindPasien(ctx, filterMap)
+	if err != nil {
+		return nil, err
+	}
+
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheetName := "Worksheet"
+	index, err := f.NewSheet(sheetName)
+	if err != nil {
+		return nil, err
+	}
+	f.SetActiveSheet(index)
+
+	headers := []string{"No RM", "Nama Pasien", "Jenis Kelamin", "Tanggal Lahir", "NIK", "Alamat", "Status", "Tanggal Dibuat"}
+	for col, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+		f.SetCellValue(sheetName, cell, header)
+		f.SetCellStyle(sheetName, cell, cell, pkg.GetHeaderStyle(f))
+	}
+
+	for row, pasien := range pasiens {
+		rowNum := row + 2
+
+		f.SetCellValue(sheetName, pkg.GetCell(1, rowNum), pasien.NoRM)
+		f.SetCellValue(sheetName, pkg.GetCell(2, rowNum), pasien.NamaPasien)
+		f.SetCellValue(sheetName, pkg.GetCell(3, rowNum), pasien.JenisKelamin)
+		f.SetCellValue(sheetName, pkg.GetCell(4, rowNum), pasien.TanggalLahir.Format("2006-01-02"))
+		f.SetCellValue(sheetName, pkg.GetCell(5, rowNum), pasien.NIK)
+		f.SetCellValue(sheetName, pkg.GetCell(6, rowNum), pasien.Alamat)
+		f.SetCellValue(sheetName, pkg.GetCell(7, rowNum), pasien.Status)
+		f.SetCellValue(sheetName, pkg.GetCell(8, rowNum), pasien.CreatedAt.Format("2006-01-02 15:04:05"))
+
+		if row%2 == 0 {
+			pkg.SetRowStyle(f, sheetName, rowNum, 8, "E2EFDA")
+		} else {
+			pkg.SetRowStyle(f, sheetName, rowNum, 8, "FFFFFF")
+		}
+	}
+
+	for col := 1; col <= 8; col++ {
+		f.SetColWidth(sheetName, pkg.GetColumnName(col), pkg.GetColumnName(col), 20)
+	}
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

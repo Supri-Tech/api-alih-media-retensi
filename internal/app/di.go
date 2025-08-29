@@ -67,11 +67,7 @@ func NewApplication(db *sql.DB) *App {
 		AllowedOrigins: []string{"http://localhost:5173"},
 	}))
 
-	router.Group(func(r chi.Router) {
-		r.Use(customMiddleware.VerifyToken)
-
-		r.Handle("/uploads/*", http.StripPrefix("/uploads", http.FileServer(http.Dir("uploads"))))
-	})
+	router.Handle("/uploads/*", http.StripPrefix("/uploads", http.FileServer(http.Dir("uploads"))))
 
 	router.Route("/api/v2", func(r chi.Router) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {

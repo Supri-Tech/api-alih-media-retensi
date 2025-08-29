@@ -1,11 +1,17 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"strconv"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
+	"github.com/xuri/excelize/v2"
 )
 
 type KasusService interface {
@@ -15,6 +21,8 @@ type KasusService interface {
 	Create(ctx context.Context, kasus models.Kasus) (*models.Kasus, error)
 	Update(ctx context.Context, kasus models.Kasus) (*models.Kasus, error)
 	Delete(ctx context.Context, id int) error
+	Import(ctx context.Context, filepath string) error
+	Export(ctx context.Context, filter KasusFilter) ([]byte, error)
 }
 
 type KasusFilter struct {
@@ -145,4 +153,109 @@ func (svc *kasusService) Delete(ctx context.Context, id int) error {
 	}
 
 	return svc.repo.DeleteKasus(ctx, id)
+}
+
+func (svc *kasusService) Import(ctx context.Context, filepath string) error {
+	f, err := excelize.OpenFile(filepath)
+	if err != nil {
+		return fmt.Errorf("Failed to open Excel file: %v", err)
+	}
+	defer f.Close()
+
+	rows, err := f.GetRows("Worksheet")
+	if err != nil {
+		return fmt.Errorf("Failed to get rows: %v", err)
+	}
+
+	for i := 5; i < len(rows); i++ {
+		if len(rows[i]) < 6 {
+			continue
+		}
+
+		masaAktifRi, _ := strconv.Atoi(rows[i][1])
+		masaInaktifRi, _ := strconv.Atoi(rows[i][2])
+		masaAktifRj, _ := strconv.Atoi(rows[i][3])
+		masaInaktifRj, _ := strconv.Atoi(rows[i][4])
+
+		kasus := models.Kasus{
+			JenisKasus:    rows[i][0],
+			MasaAktifRI:   masaAktifRi,
+			MasaInaktifRI: masaInaktifRi,
+			MasaAktifRJ:   masaAktifRj,
+			MasaInaktifRJ: masaInaktifRj,
+		}
+
+		existing, err := svc.repo.FindKasus(ctx, map[string]string{"JenisKasus": kasus.JenisKasus})
+		if err != nil || existing == nil {
+			_, err := svc.repo.CreateKasus(ctx, kasus)
+			if err != nil {
+				log.Printf("Failed to create pasien %s: %v", kasus.JenisKasus, err)
+			}
+		} else {
+			kasus.ID = existing[0].ID
+			_, err := svc.repo.UpdateKasus(ctx, kasus)
+			if err != nil {
+				log.Printf("Failed to update pasien %s: %v", kasus.JenisKasus, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (svc *kasusService) Export(ctx context.Context, filter KasusFilter) ([]byte, error) {
+	filterMap := make(map[string]string)
+	if filter.JenisKasus != "" {
+		filterMap["JenisKasus"] = filter.JenisKasus
+	}
+
+	kasusList, err := svc.repo.FindKasus(ctx, filterMap)
+	if err != nil {
+		return nil, err
+	}
+
+	f := excelize.NewFile()
+	defer f.Close()
+
+	sheetName := "Worksheet"
+	index, err := f.NewSheet(sheetName)
+	if err != nil {
+		return nil, err
+	}
+	f.SetActiveSheet(index)
+
+	headers := []string{"Jenis Kasus", "Masa Aktif RI", "Masa Inaktif RI", "Masa Aktif RJ", "Masa Inaktif RJ", "Info Lain"}
+	for col, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+		f.SetCellValue(sheetName, cell, header)
+		f.SetCellStyle(sheetName, cell, cell, pkg.GetHeaderStyle(f))
+	}
+
+	for row, kasus := range kasusList {
+		rowNum := row + 2
+
+		f.SetCellValue(sheetName, pkg.GetCell(1, rowNum), kasus.JenisKasus)
+		f.SetCellValue(sheetName, pkg.GetCell(2, rowNum), kasus.MasaAktifRI)
+		f.SetCellValue(sheetName, pkg.GetCell(3, rowNum), kasus.MasaInaktifRI)
+		f.SetCellValue(sheetName, pkg.GetCell(4, rowNum), kasus.MasaAktifRJ)
+		f.SetCellValue(sheetName, pkg.GetCell(5, rowNum), kasus.MasaInaktifRJ)
+		f.SetCellValue(sheetName, pkg.GetCell(6, rowNum), kasus.InfoLain)
+
+		if row%2 == 0 {
+			pkg.SetRowStyle(f, sheetName, rowNum, 8, "E2EFDA")
+		} else {
+			pkg.SetRowStyle(f, sheetName, rowNum, 8, "FFFFFF")
+		}
+	}
+
+	for col := 1; col <= 8; col++ {
+		f.SetColWidth(sheetName, pkg.GetColumnName(col), pkg.GetColumnName(col), 20)
+	}
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

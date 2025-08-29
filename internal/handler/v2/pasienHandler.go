@@ -2,7 +2,9 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -31,6 +33,8 @@ func (hdl *PasienHandler) PasienRoutes(router chi.Router) {
 		r.Post("/pasien", hdl.Create)
 		r.Put("/pasien/{id}", hdl.Update)
 		r.Delete("/pasien/{id}", hdl.Delete)
+		r.Post("/pasien/import", hdl.Import)
+		r.Get("/pasien/export", hdl.Export)
 	})
 }
 
@@ -188,4 +192,72 @@ func (hdl *PasienHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data deleted", nil)
+}
+
+func (hdl *PasienHandler) Import(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(10 << 20) // 10 MB
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Failed to parse multipart form")
+		return
+	}
+
+	file, header, err := r.FormFile("File")
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Failed to get file")
+		return
+	}
+	defer file.Close()
+
+	if header.Header.Get("Content-Type") != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
+		pkg.Error(w, http.StatusBadRequest, "Only Excel files (.xlsx) are allowed")
+		return
+	}
+
+	tempFile, err := os.CreateTemp("", "upload-*.xlsx")
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to create temp file")
+		return
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	_, err = io.Copy(tempFile, file)
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to save file")
+		return
+	}
+
+	err = hdl.service.Import(r.Context(), tempFile.Name())
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to import data: "+err.Error())
+		return
+	}
+
+	pkg.Success(w, "Data Imported", nil)
+}
+
+func (hdl *PasienHandler) Export(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	filter := services.PasienFilter{
+		NoRM:       query.Get("NoRM"),
+		NamaPasien: query.Get("NamaPasien"),
+		NIK:        query.Get("NIK"),
+	}
+
+	excelData, err := hdl.service.Export(r.Context(), filter)
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to export data: "+err.Error())
+		return
+	}
+
+	filename := "data_pasien_" + time.Now().Format("20060102_150405") + ".xlsx"
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	w.Header().Set("Content-Length", strconv.Itoa(len(excelData)))
+
+	if _, err := w.Write(excelData); err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to write Excel file")
+		return
+	}
 }

@@ -2,8 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
+	"time"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/middleware"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
@@ -30,7 +33,9 @@ func (hdl *KasusHandler) KasusRoutes(router chi.Router) {
 		r.Post("/kasus", hdl.Create)
 		r.Put("/kasus/{id}", hdl.Update)
 		r.Delete("/kasus/{id}", hdl.Delete)
+		r.Post("/kasus/import", hdl.Import)
 	})
+	router.Get("/kasus/export", hdl.Export)
 }
 
 func (hdl *KasusHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -183,4 +188,71 @@ func (hdl *KasusHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data deleted", nil)
+}
+
+func (hdl *KasusHandler) Import(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(10 << 20) // 10 MB
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Failed to parse multipart form")
+		return
+	}
+
+	// Get the file from form data
+	file, header, err := r.FormFile("File")
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Failed to get file from form data. Use key 'file'")
+		return
+	}
+	defer file.Close()
+
+	if header.Header.Get("Content-Type") != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
+		pkg.Error(w, http.StatusBadRequest, "Only Excel files (.xlsx) are allowed")
+		return
+	}
+
+	tempFile, err := os.CreateTemp("", "kasus-upload-*.xlsx")
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to create temporary file")
+		return
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	_, err = io.Copy(tempFile, file)
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to save file")
+		return
+	}
+
+	err = hdl.service.Import(r.Context(), tempFile.Name())
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to import data: "+err.Error())
+		return
+	}
+
+	pkg.Success(w, "Excel file imported successfully", nil)
+}
+
+func (hdl *KasusHandler) Export(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	filter := services.KasusFilter{
+		JenisKasus: query.Get("JenisKasus"),
+	}
+
+	excelData, err := hdl.service.Export(r.Context(), filter)
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to export data: "+err.Error())
+		return
+	}
+
+	filename := "data_kasus_" + time.Now().Format("20060102_150405") + ".xlsx"
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	w.Header().Set("Content-Length", strconv.Itoa(len(excelData)))
+
+	if _, err := w.Write(excelData); err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to write Excel file")
+		return
+	}
 }
