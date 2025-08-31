@@ -2,8 +2,10 @@ package handler
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -15,12 +17,13 @@ import (
 )
 
 type KunjunganHandler struct {
-	service        services.KunjunganService
-	dokumenService services.DokumenService
+	service          services.KunjunganService
+	dokumenService   services.DokumenService
+	alihMediaService services.AlihMediaService
 }
 
-func NewKunjunganHandler(service services.KunjunganService, dokumenService services.DokumenService) *KunjunganHandler {
-	return &KunjunganHandler{service: service, dokumenService: dokumenService}
+func NewKunjunganHandler(service services.KunjunganService, dokumenService services.DokumenService, alihMediaService services.AlihMediaService) *KunjunganHandler {
+	return &KunjunganHandler{service: service, dokumenService: dokumenService, alihMediaService: alihMediaService}
 }
 
 func (hdl *KunjunganHandler) KunjunganRoutes(router chi.Router) {
@@ -30,6 +33,7 @@ func (hdl *KunjunganHandler) KunjunganRoutes(router chi.Router) {
 		r.Get("/kunjungan", hdl.GetAll)
 		r.Get("/kunjungan/{id}", hdl.GetByID)
 		r.Post("/kunjungan", hdl.Create)
+		r.Post("/kunjungan/import", hdl.Import)
 		r.Put("/kunjungan/{id}", hdl.Update)
 		r.Delete("/kunjungan/{id}", hdl.Delete)
 	})
@@ -88,6 +92,18 @@ func (hdl *KunjunganHandler) Create(w http.ResponseWriter, r *http.Request) {
 	newKunjungan, err := hdl.service.Create(r.Context(), kunjungan)
 	if err != nil {
 		pkg.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	log.Println(newKunjungan.ID)
+
+	err = hdl.alihMediaService.CreateAndCheckAlihMedia(r.Context(), newKunjungan.ID)
+
+	log.Println(err)
+
+	if err != nil {
+		log.Printf("Warning: Failed to check alih media for kunjungan ID %d: %v", newKunjungan.ID, err)
+		pkg.Error(w, http.StatusInternalServerError, "Kunjungan created but failed to add Alih Media "+err.Error())
 		return
 	}
 
@@ -205,4 +221,46 @@ func (hdl *KunjunganHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data deleted", nil)
+}
+
+func (hdl *KunjunganHandler) Import(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(10 << 20)
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Failed to parse multipart form")
+		return
+	}
+
+	file, header, err := r.FormFile("File")
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Failed to get file from form data")
+		return
+	}
+	defer file.Close()
+
+	if header.Header.Get("Content-Type") != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" {
+		pkg.Error(w, http.StatusBadRequest, "Only Excel files (.xlsx) are allowed")
+		return
+	}
+
+	tempFile, err := os.CreateTemp("", "kunjungan-upload-*.xlsx")
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to create temporary file")
+		return
+	}
+	defer os.Remove(tempFile.Name())
+	defer tempFile.Close()
+
+	_, err = io.Copy(tempFile, file)
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to save file")
+		return
+	}
+
+	err = hdl.service.Import(r.Context(), tempFile.Name())
+	if err != nil {
+		pkg.Error(w, http.StatusBadRequest, "Import error: "+err.Error())
+		return
+	}
+
+	pkg.Success(w, "Excel file imported successfully", nil)
 }

@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
@@ -28,6 +29,24 @@ func VerifyToken(next http.Handler) http.Handler {
 			return
 		}
 
+		var userID string
+		switch v := claims["user_id"].(type) {
+		case float64:
+			userID = strconv.Itoa(int(v))
+		case int:
+			userID = strconv.Itoa(v)
+		case string:
+			userID = v
+		default:
+			pkg.Error(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
+		if userID == "" {
+			pkg.Error(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+
 		email, ok := claims["email"].(string)
 		if !ok || email == "" {
 			pkg.Error(w, http.StatusUnauthorized, "Invalid token")
@@ -47,6 +66,7 @@ func VerifyToken(next http.Handler) http.Handler {
 		}
 
 		ctx := r.Context()
+		ctx = context.WithValue(ctx, "user_id", userID)
 		ctx = context.WithValue(ctx, "email", email)
 		ctx = context.WithValue(ctx, "role", role)
 		ctx = context.WithValue(ctx, "status", status)

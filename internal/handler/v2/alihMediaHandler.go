@@ -52,7 +52,7 @@ func (hdl *AlihMediaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	alihMedia, err := hdl.service.GetByID(r.Context(), id)
 	if err != nil {
-		if err.Error() == "Kunjungan not found" {
+		if err.Error() == "Alih media not found" {
 			pkg.Error(w, http.StatusBadRequest, "Invalid ID format")
 			return
 		} else {
@@ -66,9 +66,9 @@ func (hdl *AlihMediaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (hdl *AlihMediaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	type CreateAlihMedia struct {
-		ID             int       `json:"IdKunjugan"`
-		TanggalLaporan time.Time `json:"TglLaporan"`
-		Status         string    `json:"Status"`
+		ID             int        `json:"IdKunjugan"`
+		TanggalLaporan *time.Time `json:"TglLaporan"`
+		Status         string     `json:"Status"`
 	}
 
 	var req CreateAlihMedia
@@ -101,9 +101,9 @@ func (hdl *AlihMediaHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type UpdateAlihMedia struct {
-		ID             int       `json:"IdKunjugan"`
-		TanggalLaporan time.Time `json:"TglLaporan"`
-		Status         string    `json:"Status"`
+		ID             int        `json:"IdKunjugan"`
+		TanggalLaporan *time.Time `json:"TglLaporan"`
+		Status         string     `json:"Status"`
 	}
 
 	var req UpdateAlihMedia

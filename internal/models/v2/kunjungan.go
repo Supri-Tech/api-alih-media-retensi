@@ -20,7 +20,8 @@ type KunjunganJoin struct {
 	Alamat         string
 	Status         string
 	TglMasuk       time.Time // kunjungan
-	JenisKasus     string    // kasus
+	IDKasus        int
+	JenisKasus     string // kasus
 	MasaAktifRi    int
 	MasaInaktifRi  int
 	MasaAktifRj    int

@@ -3,9 +3,12 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
+	"github.com/xuri/excelize/v2"
 )
 
 type KunjunganService interface {
@@ -14,14 +17,25 @@ type KunjunganService interface {
 	Create(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
 	Update(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
 	Delete(ctx context.Context, id int) error
+	Import(ctx context.Context, filePath string) error
 }
 
 type kunjunganService struct {
-	repo repositories.KunjunganRepository
+	repo       repositories.KunjunganRepository
+	pasienRepo repositories.PasienRepository
+	kasusRepo  repositories.KasusRepository
 }
 
-func NewServiceKunjungan(repo repositories.KunjunganRepository) KunjunganService {
-	return &kunjunganService{repo: repo}
+func NewServiceKunjungan(
+	repo repositories.KunjunganRepository,
+	pasienRepo repositories.PasienRepository,
+	kasusRepo repositories.KasusRepository,
+) KunjunganService {
+	return &kunjunganService{
+		repo:       repo,
+		pasienRepo: pasienRepo,
+		kasusRepo:  kasusRepo,
+	}
 }
 
 type KunjunganPagination struct {
@@ -73,7 +87,7 @@ func (svc *kunjunganService) GetByID(ctx context.Context, id int) (*models.Kunju
 
 	kunjungan, err := svc.repo.GetKunjunganByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 
 	if kunjungan == nil {
@@ -122,4 +136,52 @@ func (svc *kunjunganService) Delete(ctx context.Context, id int) error {
 	}
 
 	return svc.repo.DeleteKunjungan(ctx, id)
+}
+
+func (svc *kunjunganService) Import(ctx context.Context, filePath string) error {
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		return fmt.Errorf("Failed to open Excel file: %v", err)
+	}
+	defer f.Close()
+
+	rows, err := f.GetRows("Worksheet")
+	if err != nil {
+		return fmt.Errorf("Failed to get rows: %v", err)
+	}
+
+	for i := 4; i < len(rows); i++ {
+		if len(rows[i]) < 3 {
+			continue
+		}
+
+		tglMasuk := pkg.ParseDate(rows[i][7])
+
+		noRM := rows[i][0]
+		pasien, err := svc.pasienRepo.GetPasienByNoRM(ctx, noRM)
+		if err != nil || pasien == nil {
+			continue
+		}
+
+		jenisKasus := rows[i][8]
+		kasusList, err := svc.kasusRepo.FindKasus(ctx, map[string]string{"JenisKasus": jenisKasus})
+
+		if err != nil || len(kasusList) == 0 {
+			continue
+		}
+
+		kunjungan := models.Kunjungan{
+			IDPasien:       pasien.ID,
+			IDKasus:        kasusList[0].ID,
+			TanggalMasuk:   tglMasuk,
+			JenisKunjungan: rows[i][9],
+		}
+
+		_, err = svc.repo.CreateKunjungan(ctx, &kunjungan)
+		if err != nil {
+			continue
+		}
+	}
+
+	return nil
 }

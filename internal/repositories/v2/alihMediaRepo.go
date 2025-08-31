@@ -4,13 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
+	"time"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 )
 
 type AlihMediaRepository interface {
 	GetAllAlihMedia(ctx context.Context, limit, offset int) ([]*models.AlihMediaJoin, error)
-	GetAlihMediaByID(ctx context.Context, id int) (*models.AlihMediaJoin, error)
+	GetAlihMediaByIDKunjungan(ctx context.Context, id int) (*models.AlihMediaJoin, error)
+	GetAlihMediaByID(ctx context.Context, id int) (*models.AlihMedia, error)
 	GetTotalAlihMedia(ctx context.Context) (int, error)
 	CreateAlihMedia(ctx context.Context, alihMedia *models.AlihMedia) (*models.AlihMedia, error)
 	UpdateAlihMedia(ctx context.Context, alihMedia models.AlihMedia) (*models.AlihMedia, error)
@@ -33,7 +36,7 @@ func (repo *alihMediaRepository) GetAllAlihMedia(ctx context.Context, limit, off
 		alih_media.Id AS Id,
 		TglLaporan,
 		alih_media.Status AS Status,
-		JenisKunjungan
+		JenisKunjungan,
 		pasien.NoRM AS NoRM,
 		NamaPasien,
 		JenisKelamin,
@@ -46,20 +49,11 @@ func (repo *alihMediaRepository) GetAllAlihMedia(ctx context.Context, limit, off
 		MasaAktifRj,
 		MasaInaktifRj,
 		InfoLain
-	FROM
-		alih_media
-	INNER JOIN
-		kunjungan
-	ON
-		kunjungan.Id = alih_media.Id
-	INNER JOIN
-		pasien
-	ON
-		pasien.Id = alih_media.Id
-	INNER JOIN
-		kasus
-	ON
-		kasus.Id = alih_media.Id
+	FROM alih_media
+	INNER JOIN kunjungan ON kunjungan.Id = alih_media.Id
+	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	LIMIT ? OFFSET ?
 	`
 
 	rows, err := repo.db.QueryContext(ctx, query, limit, offset)
@@ -116,13 +110,13 @@ func (repo *alihMediaRepository) GetTotalAlihMedia(ctx context.Context) (int, er
 	return count, nil
 }
 
-func (repo *alihMediaRepository) GetAlihMediaByID(ctx context.Context, id int) (*models.AlihMediaJoin, error) {
+func (repo *alihMediaRepository) GetAlihMediaByIDKunjungan(ctx context.Context, id int) (*models.AlihMediaJoin, error) {
 	query := `
 	SELECT 
 		alih_media.Id AS Id,
 		TglLaporan,
 		alih_media.Status AS Status,
-		JenisKunjungan
+		JenisKunjungan,
 		pasien.NoRM AS NoRM,
 		NamaPasien,
 		JenisKelamin,
@@ -137,18 +131,11 @@ func (repo *alihMediaRepository) GetAlihMediaByID(ctx context.Context, id int) (
 		InfoLain
 	FROM
 		alih_media
-	INNER JOIN
-		kunjungan
-	ON
-		kunjungan.Id = alih_media.Id
-	INNER JOIN
-		pasien
-	ON
-		pasien.Id = alih_media.Id
-	INNER JOIN
-		kasus
-	ON
-		kasus.Id = alih_media.Id
+	INNER JOIN kunjungan ON kunjungan.Id = alih_media.Id
+	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	WHERE alih_media.Id =  ?
+	LIMIT 1
 	`
 
 	var alihMedia models.AlihMediaJoin
@@ -173,10 +160,69 @@ func (repo *alihMediaRepository) GetAlihMediaByID(ctx context.Context, id int) (
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, err
+			return nil, nil
 		}
 		return nil, err
 	}
+
+	return &alihMedia, nil
+}
+
+func (repo *alihMediaRepository) GetAlihMediaByID(ctx context.Context, id int) (*models.AlihMedia, error) {
+	query := `
+	SELECT 
+		Id,
+		TglLaporan,
+		Status,
+		CreatedAt,
+		UpdatedAt
+	FROM
+		alih_media
+	WHERE Id =  ?
+	LIMIT 1
+	`
+
+	log.Printf("Executing query: %s with ID: %d", query, id)
+
+	var alihMedia models.AlihMedia
+	var tglLaporan, createdAt, updatedAt sql.NullTime
+
+	row := repo.db.QueryRowContext(ctx, query, id)
+	err := row.Scan(
+		&alihMedia.ID,
+		&tglLaporan,
+		&alihMedia.Status,
+		&createdAt,
+		&updatedAt,
+	)
+
+	if err != nil {
+		log.Printf("GetAlihMediaByID error: %v, ID: %d", err, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if tglLaporan.Valid {
+		alihMedia.TglLaporan = &tglLaporan.Time
+	} else {
+		alihMedia.TglLaporan = nil
+	}
+
+	if createdAt.Valid {
+		alihMedia.CreatedAt = createdAt.Time
+	} else {
+		alihMedia.CreatedAt = time.Now()
+	}
+
+	if updatedAt.Valid {
+		alihMedia.UpdatedAt = updatedAt.Time
+	} else {
+		alihMedia.UpdatedAt = time.Now()
+	}
+
+	log.Printf("Successfully found alih_media for ID: %d", id)
 
 	return &alihMedia, nil
 }
@@ -187,19 +233,21 @@ func (repo *alihMediaRepository) CreateAlihMedia(ctx context.Context, alihMedia 
 	VALUES (?,?,?)
 	`
 
-	result, err := repo.db.ExecContext(
+	var tglLaporan interface{}
+	if alihMedia.TglLaporan == nil {
+		tglLaporan = nil
+	} else {
+		tglLaporan = *alihMedia.TglLaporan
+	}
+
+	_, err := repo.db.ExecContext(
 		ctx,
 		query,
 		&alihMedia.ID,
-		&alihMedia.TglLaporan,
+		tglLaporan,
 		&alihMedia.Status,
 	)
 
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = result.LastInsertId()
 	if err != nil {
 		return nil, err
 	}

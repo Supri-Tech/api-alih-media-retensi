@@ -15,6 +15,7 @@ type KunjunganRepository interface {
 	CreateKunjungan(ctx context.Context, kunjungan *models.Kunjungan) (*models.Kunjungan, error)
 	UpdateKunjungan(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
 	DeleteKunjungan(ctx context.Context, id int) error
+	GetPotentiallyExpiredKunjungan(ctx context.Context, monthsThreshold int, limit, offset int) ([]*models.Kunjungan, error)
 }
 
 type kunjunganRepository struct {
@@ -40,6 +41,7 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 		pasien.Status AS Status,
 		kunjungan.TglMasuk AS TglMasuk,
 		kunjungan.JenisKunjungan AS JenisKunjungan,
+		kasus.Id AS IDKasus,
 		kasus.JenisKasus AS JenisKasus,
 		kasus.MasaAktifRi AS MasaAktifRi,
 		kasus.MasaInaktifRi AS MasaInaktifRi,
@@ -77,6 +79,7 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 			&k.Status,
 			&k.TglMasuk,
 			&k.JenisKunjungan,
+			&k.IDKasus,
 			&k.JenisKasus,
 			&k.MasaAktifRi,
 			&k.MasaInaktifRi,
@@ -111,37 +114,104 @@ func (repo *kunjunganRepository) GetTotalKunjungan(ctx context.Context) (int, er
 
 func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (*models.KunjunganJoin, error) {
 	query := `
-	SELECT 
-		kunjungan.Id, 
-		pasien.NamaPasien AS NamaPasien, 
-		pasien.NoRM AS NoRM, 
-		pasien.TglLahir AS TglLahir, 
-		pasien.Alamat AS Alamat, 
-		kasus.JenisKasus AS JenisKasus
+	SELECT
+		kunjungan.Id,
+		pasien.NamaPasien AS NamaPasien,
+		pasien.NoRM AS NoRM,
+		pasien.NIK AS NIK,
+		pasien.JenisKelamin AS JenisKelamin,
+		pasien.TglLahir AS TglLahir,
+		pasien.Alamat AS Alamat,
+		pasien.Status AS Status,
+		kunjungan.TglMasuk AS TglMasuk,
+		kunjungan.JenisKunjungan AS JenisKunjungan,
+		kasus.Id AS IDKasus,
+		kasus.JenisKasus AS JenisKasus,
+		kasus.MasaAktifRi AS MasaAktifRi,
+		kasus.MasaInaktifRi AS MasaInaktifRi,
+		kasus.MasaAktifRj AS MasaAktifRj,
+		kasus.MasaInaktifRj AS MasaInaktifRj,
+		kasus.InfoLain AS InfoLain,
+		dokumen.Path AS path
 	FROM kunjungan
 	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
 	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	INNER JOIN dokumen ON dokumen.IdKunjungan = kunjungan.Id
 	WHERE kunjungan.Id = ?
 	LIMIT 1
 	`
-	var kunjungan models.KunjunganJoin
+	var k models.KunjunganJoin
 	row := repo.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
-		&kunjungan.ID,
-		&kunjungan.NamaPasien,
-		&kunjungan.NoRM,
-		&kunjungan.TglLahir,
-		&kunjungan.Alamat,
-		&kunjungan.JenisKasus,
+		&k.ID,
+		&k.NamaPasien,
+		&k.NoRM,
+		&k.NIK,
+		&k.JenisKelamin,
+		&k.TglLahir,
+		&k.Alamat,
+		&k.Status,
+		&k.TglMasuk,
+		&k.JenisKunjungan,
+		&k.IDKasus,
+		&k.JenisKasus,
+		&k.MasaAktifRi,
+		&k.MasaInaktifRi,
+		&k.MasaAktifRj,
+		&k.MasaInaktifRj,
+		&k.InfoLain,
+		&k.Dokumen,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, err
+			return nil, nil
 		}
 		return nil, err
 	}
 
-	return &kunjungan, nil
+	return &k, nil
+}
+
+func (repo *kunjunganRepository) GetPotentiallyExpiredKunjungan(ctx context.Context, monthsThreshold int, limit, offset int) ([]*models.Kunjungan, error) {
+	query := `
+	SELECT k.Id, k.IdPasien, k.IdKasus, k.TglMasuk, k.JenisKunjungan, k.CreatedAt, k.UpdatedAt
+	FROM kunjungan k
+	INNER JOIN kasus ks ON k.IdKasus = ks.Id
+	WHERE 
+		(k.JenisKunjungan = 'RI' AND DATE_ADD(k.TglMasuk, INTERVAL ks.MasaInaktifRI YEAR) <= DATE_ADD(CURDATE(), INTERVAL ? MONTH))
+		OR 
+		(k.JenisKunjungan = 'RJ' AND DATE_ADD(k.TglMasuk, INTERVAL ks.MasaInaktifRJ YEAR) <= DATE_ADD(CURDATE(), INTERVAL ? MONTH))
+	ORDER BY k.TglMasuk ASC
+	LIMIT ? OFFSET ?
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query, monthsThreshold, monthsThreshold, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var kunjunganList []*models.Kunjungan
+	for rows.Next() {
+		var k models.Kunjungan
+		err := rows.Scan(
+			&k.ID,
+			&k.IDPasien,
+			&k.IDKasus,
+			&k.TanggalMasuk,
+			&k.JenisKunjungan,
+		)
+		if err != nil {
+			return nil, err
+		}
+		kunjunganList = append(kunjunganList, &k)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return kunjunganList, nil
 }
 
 func (repo *kunjunganRepository) CreateKunjungan(ctx context.Context, kunjungan *models.Kunjungan) (*models.Kunjungan, error) {

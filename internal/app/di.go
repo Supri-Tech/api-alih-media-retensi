@@ -20,38 +20,32 @@ type App struct {
 
 func NewApplication(db *sql.DB) *App {
 	kasusRepo := repositories.NewRepoKasus(db)
-	kasusService := services.NewServiceKasus(kasusRepo)
-	kasusHandler := handler.NewKasusHandler(kasusService)
-
-	userRepo := repositories.NewRepoUser(db)
-	userService := services.NewServiceUser(userRepo)
-	userHandler := handler.NewUserHandler(userService)
-
-	pasienRepo := repositories.NewRepoPasien(db)
-	pasienService := services.NewServicePasien(pasienRepo)
-	PasienHandler := handler.NewPasienHandler(pasienService)
-
 	dokumenRepo := repositories.NewRepoDokumen(db)
-	dokumenService := services.NewServiceDokumen(dokumenRepo)
-
+	userRepo := repositories.NewRepoUser(db)
+	pasienRepo := repositories.NewRepoPasien(db)
 	kunjunganRepo := repositories.NewRepoKunjungan(db)
-	kunjunganService := services.NewServiceKunjungan(kunjunganRepo)
-	kunjunganHandler := handler.NewKunjunganHandler(kunjunganService, dokumenService)
-
 	infoSistemRepo := repositories.NewRepoInfoSistem(db)
-	infoSistemService := services.InfoSistemService(infoSistemRepo)
-	InfoSistemHandler := handler.NewInfoSistemHandler(infoSistemService)
-
 	aliMediaRepo := repositories.NewRepoAlihMedia(db)
-	alihMediaService := services.NewServiceAlihMedia(aliMediaRepo)
-	alihMediaHandler := handler.NewAlihMediaHandler(alihMediaService)
-
 	retensiRepo := repositories.NewRepoRetensi(db)
-	retensiService := services.NewServiceRetensi(retensiRepo)
-	retensiHandler := handler.NewRetensiHandler(retensiService)
-
 	pemusnahanRepo := repositories.NewRepoPemusnahan(db)
+
+	kasusService := services.NewServiceKasus(kasusRepo)
+	userService := services.NewServiceUser(userRepo)
+	pasienService := services.NewServicePasien(pasienRepo)
+	kunjunganService := services.NewServiceKunjungan(kunjunganRepo, pasienRepo, kasusRepo)
+	dokumenService := services.NewServiceDokumen(dokumenRepo)
+	infoSistemService := services.InfoSistemService(infoSistemRepo)
+	alihMediaService := services.NewServiceAlihMedia(aliMediaRepo, kunjunganRepo, kasusRepo)
+	retensiService := services.NewServiceRetensi(retensiRepo)
 	pemusnahanService := services.NewServicePemusnahan(pemusnahanRepo)
+
+	kasusHandler := handler.NewKasusHandler(kasusService)
+	userHandler := handler.NewUserHandler(userService)
+	PasienHandler := handler.NewPasienHandler(pasienService)
+	kunjunganHandler := handler.NewKunjunganHandler(kunjunganService, dokumenService, alihMediaService)
+	infoSistemHandler := handler.NewInfoSistemHandler(infoSistemService)
+	alihMediaHandler := handler.NewAlihMediaHandler(alihMediaService)
+	retensiHandler := handler.NewRetensiHandler(retensiService)
 	pemusnahanHandler := handler.NewPemusnahanHandler(pemusnahanService)
 
 	router := chi.NewRouter()
@@ -77,7 +71,7 @@ func NewApplication(db *sql.DB) *App {
 		kasusHandler.KasusRoutes(r)
 		PasienHandler.PasienRoutes(r)
 		kunjunganHandler.KunjunganRoutes(r)
-		InfoSistemHandler.InfoSistemRoutes(r)
+		infoSistemHandler.InfoSistemRoutes(r)
 		alihMediaHandler.AlihMediaRoutes(r)
 		retensiHandler.RetensiRoutes(r)
 		pemusnahanHandler.PemusnahanRoutes(r)
