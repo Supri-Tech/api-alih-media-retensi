@@ -66,9 +66,9 @@ func (hdl *RetensiHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (hdl *RetensiHandler) Create(w http.ResponseWriter, r *http.Request) {
 	type CreateRetensi struct {
-		ID             int       `json:"IdKunjugan"`
-		TanggalLaporan time.Time `json:"TglLaporan"`
-		Status         string    `json:"Status"`
+		ID             int        `json:"IdKunjugan"`
+		TanggalLaporan *time.Time `json:"TglLaporan"`
+		Status         string     `json:"Status"`
 	}
 
 	var req CreateRetensi
@@ -101,9 +101,9 @@ func (hdl *RetensiHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type UpdateRetensi struct {
-		ID             int       `json:"IdKunjugan"`
-		TanggalLaporan time.Time `json:"TglLaporan"`
-		Status         string    `json:"Status"`
+		ID             int        `json:"IdKunjugan"`
+		TanggalLaporan *time.Time `json:"TglLaporan"`
+		Status         string     `json:"Status"`
 	}
 
 	var req UpdateRetensi

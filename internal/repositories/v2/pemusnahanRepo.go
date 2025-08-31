@@ -33,7 +33,7 @@ func (repo *pemusnahanRepository) GetAllPemusnahan(ctx context.Context, limit, o
 		pemusnahan.Id AS Id,
 		TglLaporan,
 		pemusnahan.Status AS Status,
-		JenisKunjungan
+		JenisKunjungan,
 		pasien.NoRM AS NoRM,
 		NamaPasien,
 		JenisKelamin,
@@ -55,11 +55,12 @@ func (repo *pemusnahanRepository) GetAllPemusnahan(ctx context.Context, limit, o
 	INNER JOIN
 		pasien
 	ON
-		pasien.Id = pemusnahan.Id
+		pasien.Id = kunjungan.IdPasien
 	INNER JOIN
 		kasus
 	ON
-		kasus.Id = pemusnahan.Id
+		kasus.Id = kunjungan.IdKasus
+	LIMIT ? OFFSET ?
 	`
 
 	rows, err := repo.db.QueryContext(ctx, query, limit, offset)
@@ -122,7 +123,7 @@ func (repo *pemusnahanRepository) GetPemusnahanByID(ctx context.Context, id int)
 		pemusnahan.Id AS Id,
 		TglLaporan,
 		pemusnahan.Status AS Status,
-		JenisKunjungan
+		JenisKunjungan,
 		pasien.NoRM AS NoRM,
 		NamaPasien,
 		JenisKelamin,
@@ -144,11 +145,13 @@ func (repo *pemusnahanRepository) GetPemusnahanByID(ctx context.Context, id int)
 	INNER JOIN
 		pasien
 	ON
-		pasien.Id = pemusnahan.Id
+		pasien.Id = kunjungan.IdPasien
 	INNER JOIN
 		kasus
 	ON
-		kasus.Id = pemusnahan.Id
+		kasus.Id = kunjungan.IdKasus
+	WHERE retensi.Id =  ?
+	LIMIT 1
 	`
 
 	var pemusnahan models.PemusnahanJoin

@@ -33,7 +33,7 @@ func (repo *retensiRepository) GetAllRetensi(ctx context.Context, limit, offset 
 		retensi.Id AS Id,
 		TglLaporan,
 		retensi.Status AS Status,
-		JenisKunjungan
+		JenisKunjungan,
 		pasien.NoRM AS NoRM,
 		NamaPasien,
 		JenisKelamin,
@@ -55,13 +55,12 @@ func (repo *retensiRepository) GetAllRetensi(ctx context.Context, limit, offset 
 	INNER JOIN
 		pasien
 	ON
-		pasien.Id = retensi.Id
+		pasien.Id = kunjungan.IdPasien
 	INNER JOIN
 		kasus
 	ON
-		kasus.Id = retensi.Id
-	LIMIT ?
-	OFFSET ?
+		kasus.Id = kunjungan.IdKasus
+	LIMIT ? OFFSET ?
 	`
 
 	rows, err := repo.db.QueryContext(ctx, query, limit, offset)
@@ -146,11 +145,13 @@ func (repo *retensiRepository) GetRetensiByID(ctx context.Context, id int) (*mod
 	INNER JOIN
 		pasien
 	ON
-		pasien.Id = retensi.Id
+		pasien.Id = kunjungan.IdPasien
 	INNER JOIN
 		kasus
 	ON
-		kasus.Id = retensi.Id
+		kasus.Id = kunjungan.IdKasus
+	WHERE retensi.Id =  ?
+	LIMIT 1
 	`
 
 	var retensi models.RetensiJoin

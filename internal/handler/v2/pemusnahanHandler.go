@@ -66,9 +66,9 @@ func (hdl *PemusnahanHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (hdl *PemusnahanHandler) Create(w http.ResponseWriter, r *http.Request) {
 	type CreatePemusnahan struct {
-		ID             int       `json:"IdKunjugan"`
-		TanggalLaporan time.Time `json:"TglLaporan"`
-		Status         string    `json:"Status"`
+		ID             int        `json:"IdKunjugan"`
+		TanggalLaporan *time.Time `json:"TglLaporan"`
+		Status         string     `json:"Status"`
 	}
 
 	var req CreatePemusnahan
@@ -101,9 +101,9 @@ func (hdl *PemusnahanHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type UpdatePemusnahan struct {
-		ID             int       `json:"IdKunjugan"`
-		TanggalLaporan time.Time `json:"TglLaporan"`
-		Status         string    `json:"Status"`
+		ID             int        `json:"IdKunjugan"`
+		TanggalLaporan *time.Time `json:"TglLaporan"`
+		Status         string     `json:"Status"`
 	}
 
 	var req UpdatePemusnahan
