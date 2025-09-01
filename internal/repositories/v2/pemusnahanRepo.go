@@ -75,9 +75,11 @@ func (repo *pemusnahanRepository) GetAllPemusnahan(ctx context.Context, limit, o
 	var pemusnahan []*models.PemusnahanJoin
 	for rows.Next() {
 		var pms models.PemusnahanJoin
+		var tglLaporan sql.NullTime
+
 		err := rows.Scan(
 			&pms.ID,
-			&pms.TglLaporan,
+			&tglLaporan,
 			&pms.Status,
 			&pms.JenisKunjungan,
 			&pms.NoRM,
@@ -96,6 +98,13 @@ func (repo *pemusnahanRepository) GetAllPemusnahan(ctx context.Context, limit, o
 		if err != nil {
 			return nil, err
 		}
+
+		if tglLaporan.Valid {
+			pms.TglLaporan = &tglLaporan.Time
+		} else {
+			pms.TglLaporan = nil
+		}
+
 		pemusnahan = append(pemusnahan, &pms)
 	}
 
@@ -150,15 +159,17 @@ func (repo *pemusnahanRepository) GetPemusnahanByID(ctx context.Context, id int)
 		kasus
 	ON
 		kasus.Id = kunjungan.IdKasus
-	WHERE retensi.Id =  ?
+	WHERE pemusnahan.Id =  ?
 	LIMIT 1
 	`
 
 	var pemusnahan models.PemusnahanJoin
+	var tglLaporan sql.NullTime
+
 	row := repo.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
 		&pemusnahan.ID,
-		&pemusnahan.TglLaporan,
+		&tglLaporan,
 		&pemusnahan.Status,
 		&pemusnahan.JenisKunjungan,
 		&pemusnahan.NoRM,
@@ -179,6 +190,12 @@ func (repo *pemusnahanRepository) GetPemusnahanByID(ctx context.Context, id int)
 			return nil, err
 		}
 		return nil, err
+	}
+
+	if tglLaporan.Valid {
+		pemusnahan.TglLaporan = &tglLaporan.Time
+	} else {
+		pemusnahan.TglLaporan = nil
 	}
 
 	return &pemusnahan, nil

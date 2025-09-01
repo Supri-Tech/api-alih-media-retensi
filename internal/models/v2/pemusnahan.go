@@ -12,7 +12,7 @@ type Pemusnahan struct {
 
 type PemusnahanJoin struct {
 	ID             int // Pemusnahan
-	TglLaporan     time.Time
+	TglLaporan     *time.Time
 	Status         string
 	TglMasuk       time.Time // Kunjungan
 	JenisKunjungan string

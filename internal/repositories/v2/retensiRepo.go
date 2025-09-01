@@ -75,9 +75,11 @@ func (repo *retensiRepository) GetAllRetensi(ctx context.Context, limit, offset 
 	var retensi []*models.RetensiJoin
 	for rows.Next() {
 		var rts models.RetensiJoin
+		var tglLaporan sql.NullTime
+
 		err := rows.Scan(
 			&rts.ID,
-			&rts.TglLaporan,
+			&tglLaporan,
 			&rts.Status,
 			&rts.JenisKunjungan,
 			&rts.NoRM,
@@ -96,6 +98,13 @@ func (repo *retensiRepository) GetAllRetensi(ctx context.Context, limit, offset 
 		if err != nil {
 			return nil, err
 		}
+
+		if tglLaporan.Valid {
+			rts.TglLaporan = &tglLaporan.Time
+		} else {
+			rts.TglLaporan = nil
+		}
+
 		retensi = append(retensi, &rts)
 	}
 
@@ -155,10 +164,12 @@ func (repo *retensiRepository) GetRetensiByID(ctx context.Context, id int) (*mod
 	`
 
 	var retensi models.RetensiJoin
+	var tglLaporan sql.NullTime
+
 	row := repo.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
 		&retensi.ID,
-		&retensi.TglLaporan,
+		&tglLaporan,
 		&retensi.Status,
 		&retensi.JenisKunjungan,
 		&retensi.NoRM,
@@ -179,6 +190,12 @@ func (repo *retensiRepository) GetRetensiByID(ctx context.Context, id int) (*mod
 			return nil, err
 		}
 		return nil, err
+	}
+
+	if tglLaporan.Valid {
+		retensi.TglLaporan = &tglLaporan.Time
+	} else {
+		retensi.TglLaporan = nil
 	}
 
 	return &retensi, nil

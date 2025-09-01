@@ -12,7 +12,7 @@ type Retensi struct {
 
 type RetensiJoin struct {
 	ID             int // Retensi
-	TglLaporan     time.Time
+	TglLaporan     *time.Time
 	Status         string
 	TglMasuk       time.Time // Kunjungan
 	JenisKunjungan string

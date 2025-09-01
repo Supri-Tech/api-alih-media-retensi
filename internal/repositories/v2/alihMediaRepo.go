@@ -139,10 +139,12 @@ func (repo *alihMediaRepository) GetAlihMediaByIDKunjungan(ctx context.Context, 
 	`
 
 	var alihMedia models.AlihMediaJoin
+	var tglLaporan sql.NullTime
+
 	row := repo.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
 		&alihMedia.ID,
-		&alihMedia.TglLaporan,
+		&tglLaporan,
 		&alihMedia.Status,
 		&alihMedia.JenisKunjungan,
 		&alihMedia.NoRM,
@@ -163,6 +165,12 @@ func (repo *alihMediaRepository) GetAlihMediaByIDKunjungan(ctx context.Context, 
 			return nil, nil
 		}
 		return nil, err
+	}
+
+	if tglLaporan.Valid {
+		alihMedia.TglLaporan = &tglLaporan.Time
+	} else {
+		alihMedia.TglLaporan = nil
 	}
 
 	return &alihMedia, nil
@@ -233,21 +241,19 @@ func (repo *alihMediaRepository) CreateAlihMedia(ctx context.Context, alihMedia 
 	VALUES (?,?,?)
 	`
 
-	var tglLaporan interface{}
-	if alihMedia.TglLaporan == nil {
-		tglLaporan = nil
-	} else {
-		tglLaporan = *alihMedia.TglLaporan
-	}
-
-	_, err := repo.db.ExecContext(
+	result, err := repo.db.ExecContext(
 		ctx,
 		query,
 		&alihMedia.ID,
-		tglLaporan,
+		&alihMedia.TglLaporan,
 		&alihMedia.Status,
 	)
 
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = result.LastInsertId()
 	if err != nil {
 		return nil, err
 	}

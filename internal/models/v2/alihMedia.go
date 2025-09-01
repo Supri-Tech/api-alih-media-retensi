@@ -12,7 +12,7 @@ type AlihMedia struct {
 
 type AlihMediaJoin struct {
 	ID             int // Alih media
-	TglLaporan     time.Time
+	TglLaporan     *time.Time
 	Status         string
 	TglMasuk       time.Time // Kunjungan
 	JenisKunjungan string

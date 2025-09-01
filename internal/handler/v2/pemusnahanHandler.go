@@ -94,16 +94,15 @@ func (hdl *PemusnahanHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (hdl *PemusnahanHandler) Update(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	_, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		pkg.Error(w, http.StatusBadRequest, "Invalid ID format")
 		return
 	}
 
 	type UpdatePemusnahan struct {
-		ID             int        `json:"IdKunjugan"`
-		TanggalLaporan *time.Time `json:"TglLaporan"`
-		Status         string     `json:"Status"`
+		TanggalLaporan string `json:"TglLaporan"`
+		Status         string `json:"Status"`
 	}
 
 	var req UpdatePemusnahan
@@ -112,9 +111,19 @@ func (hdl *PemusnahanHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var tglLaporan *time.Time
+	if req.TanggalLaporan != "" {
+		parsedTime, err := time.Parse("2006-01-02", req.TanggalLaporan)
+		if err != nil {
+			pkg.Error(w, http.StatusBadRequest, "Invalid date format. Use YYYY-MM-DD")
+			return
+		}
+		tglLaporan = &parsedTime
+	}
+
 	pemusnahan := models.Pemusnahan{
-		ID:         req.ID,
-		TglLaporan: req.TanggalLaporan,
+		ID:         id,
+		TglLaporan: tglLaporan,
 		Status:     req.Status,
 	}
 
