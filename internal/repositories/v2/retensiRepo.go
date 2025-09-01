@@ -123,7 +123,7 @@ func (repo *retensiRepository) GetRetensiByID(ctx context.Context, id int) (*mod
 		retensi.Id AS Id,
 		TglLaporan,
 		retensi.Status AS Status,
-		JenisKunjungan
+		JenisKunjungan,
 		pasien.NoRM AS NoRM,
 		NamaPasien,
 		JenisKelamin,
