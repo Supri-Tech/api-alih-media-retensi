@@ -143,6 +143,9 @@ func (svc *alihMediaService) Delete(ctx context.Context, id int) error {
 
 func (svc *alihMediaService) CreateAndCheckAlihMedia(ctx context.Context, kunjunganID int) error {
 	kunjungan, err := svc.kunjunganRepo.GetKunjunganByID(ctx, kunjunganID)
+
+	log.Println(kunjungan)
+
 	if err != nil {
 		log.Printf("Error getting kunjungan: %v", err)
 		return err
@@ -152,6 +155,9 @@ func (svc *alihMediaService) CreateAndCheckAlihMedia(ctx context.Context, kunjun
 	}
 
 	kasus, err := svc.kasusRepo.GetKasusByID(ctx, kunjungan.IDKasus)
+
+	log.Println(kasus)
+
 	if err != nil {
 		log.Printf("Error getting kasus: %v", err)
 		return err

@@ -58,6 +58,9 @@ func (hdl *KunjunganHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(idStr)
 
 	kunjungan, err := hdl.service.GetByID(r.Context(), id)
+
+	log.Println(kunjungan)
+
 	if err != nil {
 		if err.Error() == "Kunjungan not found" {
 			pkg.Error(w, http.StatusBadRequest, "Invalid ID format")
@@ -95,11 +98,7 @@ func (hdl *KunjunganHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println(newKunjungan.ID)
-
 	err = hdl.alihMediaService.CreateAndCheckAlihMedia(r.Context(), newKunjungan.ID)
-
-	log.Println(err)
 
 	if err != nil {
 		log.Printf("Warning: Failed to check alih media for kunjungan ID %d: %v", newKunjungan.ID, err)

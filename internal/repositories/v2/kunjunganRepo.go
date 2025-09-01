@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 )
@@ -52,7 +53,7 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 	FROM kunjungan
 	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
 	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
-	INNER JOIN dokumen ON dokumen.IdKunjungan = kunjungan.Id
+	LEFT JOIN dokumen ON dokumen.IdKunjungan = kunjungan.Id
 	LIMIT ? OFFSET ?
 	`
 
@@ -68,6 +69,8 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 	var kunjungan []*models.KunjunganJoin
 	for rows.Next() {
 		var k models.KunjunganJoin
+		var path sql.NullString
+
 		err := rows.Scan(
 			&k.ID,
 			&k.NamaPasien,
@@ -86,11 +89,18 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 			&k.MasaAktifRj,
 			&k.MasaInaktifRj,
 			&k.InfoLain,
-			&k.Dokumen,
+			&path,
 		)
 		if err != nil {
 			return nil, err
 		}
+
+		if path.Valid {
+			k.Dokumen = path.String
+		} else {
+			k.Dokumen = ""
+		}
+
 		kunjungan = append(kunjungan, &k)
 	}
 
@@ -136,11 +146,13 @@ func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (
 	FROM kunjungan
 	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
 	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
-	INNER JOIN dokumen ON dokumen.IdKunjungan = kunjungan.Id
+	LEFT JOIN dokumen ON dokumen.IdKunjungan = kunjungan.Id
 	WHERE kunjungan.Id = ?
 	LIMIT 1
 	`
 	var k models.KunjunganJoin
+	var path sql.NullString
+
 	row := repo.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
 		&k.ID,
@@ -160,7 +172,7 @@ func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (
 		&k.MasaAktifRj,
 		&k.MasaInaktifRj,
 		&k.InfoLain,
-		&k.Dokumen,
+		&path,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -168,6 +180,14 @@ func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (
 		}
 		return nil, err
 	}
+
+	if path.Valid {
+		k.Dokumen = path.String
+	} else {
+		k.Dokumen = ""
+	}
+
+	log.Println(k)
 
 	return &k, nil
 }

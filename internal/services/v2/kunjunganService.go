@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
@@ -89,6 +90,8 @@ func (svc *kunjunganService) GetByID(ctx context.Context, id int) (*models.Kunju
 	if err != nil {
 		return nil, nil
 	}
+
+	log.Println(kunjungan)
 
 	if kunjungan == nil {
 		return nil, errors.New("Kunjungan not found")
