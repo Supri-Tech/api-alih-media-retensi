@@ -17,6 +17,10 @@ type KunjunganRepository interface {
 	UpdateKunjungan(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
 	DeleteKunjungan(ctx context.Context, id int) error
 	GetPotentiallyExpiredKunjungan(ctx context.Context, monthsThreshold int, limit, offset int) ([]*models.Kunjungan, error)
+	GetKunjunganBasicByID(ctx context.Context, id int) (*models.Kunjungan, error)
+	UpdateKunjunganStatus(ctx context.Context, id int, status string) error
+	GetActiveKunjungan(ctx context.Context) ([]*models.Kunjungan, error)
+	GetTotalActiveKunjungan(ctx context.Context) (int, error)
 }
 
 type kunjunganRepository struct {
@@ -109,6 +113,64 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 	}
 
 	return kunjungan, nil
+}
+
+func (repo *kunjunganRepository) GetActiveKunjungan(ctx context.Context) ([]*models.Kunjungan, error) {
+	query := `
+	SELECT
+		Id,
+		IdPasien,
+		IdKasus,
+		TglMasuk,
+		JenisKunjungan,
+		Status
+	WHERE Status = 'aktif'
+	ORDER BY TglMasuk ASC
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return []*models.Kunjungan{}, nil
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	var kunjungan []*models.Kunjungan
+	for rows.Next() {
+		var k models.Kunjungan
+
+		err := rows.Scan(
+			&k.ID,
+			&k.IDPasien,
+			&k.IDKasus,
+			&k.TanggalMasuk,
+			&k.JenisKunjungan,
+			&k.Status,
+		)
+		if err != nil {
+			return nil, err
+		}
+		kunjungan = append(kunjungan, &k)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return kunjungan, nil
+}
+
+func (repo *kunjunganRepository) GetTotalActiveKunjungan(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM kunjungan WHERE status = 'aktif'`
+
+	var count int
+	err := repo.db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (repo *kunjunganRepository) GetTotalKunjungan(ctx context.Context) (int, error) {
@@ -290,4 +352,23 @@ func (repo *kunjunganRepository) DeleteKunjungan(ctx context.Context, id int) er
 	}
 
 	return nil
+}
+
+func (repo *kunjunganRepository) UpdateKunjunganStatus(ctx context.Context, id int, status string) error {
+	query := `UPDATE kunjungan SET status = ? WHERE id = ?`
+	_, err := repo.db.ExecContext(ctx, query, status, id)
+	return err
+}
+
+func (repo *kunjunganRepository) GetKunjunganBasicByID(ctx context.Context, id int) (*models.Kunjungan, error) {
+	query := `SELECT Id, IdPasien, IdKasus, TglMasuk, JenisKunjungan, Status FROM kunjungan WHERE id = ?`
+
+	var k models.Kunjungan
+	err := repo.db.QueryRowContext(ctx, query, id).Scan(
+		&k.ID, &k.IDPasien, &k.IDKasus, &k.TanggalMasuk, &k.JenisKunjungan, &k.Status,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &k, nil
 }

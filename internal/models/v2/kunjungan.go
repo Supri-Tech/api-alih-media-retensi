@@ -8,6 +8,7 @@ type Kunjungan struct {
 	IDKasus        int
 	TanggalMasuk   time.Time
 	JenisKunjungan string
+	Status         string
 }
 
 type KunjunganJoin struct {
