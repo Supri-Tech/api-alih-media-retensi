@@ -12,12 +12,12 @@ type UserRepository interface {
 	GetAllUsers(ctx context.Context, limit, offset int) ([]*models.User, error)
 	GetTotalUsers(ctx context.Context) (int, error)
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
-	GetByID(ctx context.Context, id int) (*models.User, error) // 🔹 baru
+	GetByID(ctx context.Context, id int) (*models.User, error)
 	Create(ctx context.Context, user models.User) (*models.User, error)
 	UpdateData(ctx context.Context, user models.User) (*models.User, error)
 	UpdateStatus(ctx context.Context, user models.User) (*models.User, error)
-	UpdateProfile(ctx context.Context, user models.User) (*models.User, error) // 🔹 baru
-	UpdatePassword(ctx context.Context, id int, hashedPassword string) error   // 🔹 baru
+	UpdateProfile(ctx context.Context, user models.User) (*models.User, error)
+	UpdatePassword(ctx context.Context, id int, hashedPassword string) error
 }
 
 type userrepository struct {

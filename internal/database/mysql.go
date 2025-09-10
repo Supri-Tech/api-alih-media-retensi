@@ -10,7 +10,7 @@ import (
 
 func InitDB() *sql.DB {
 	dsn := os.Getenv("DB_DSN")
-	log.Println("Connecting to DB with DSN:", dsn) // console log untuk debug
+	log.Println("Connecting to DB with DSN:", dsn)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -21,7 +21,7 @@ func InitDB() *sql.DB {
 		log.Fatal("Failed to ping DB:", err)
 	}
 
-	log.Println("Successfully connected to the database") // console log sukses
+	log.Println("Successfully connected to the database")
 	return db
 }
 

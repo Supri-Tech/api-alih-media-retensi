@@ -98,16 +98,46 @@ func (repo *infoSistemRepository) CreateInfoSistem(ctx context.Context, infoSist
 func (repo *infoSistemRepository) UpdateInfoSistem(ctx context.Context, infoSistem models.InfoSistem) (*models.InfoSistem, error) {
 	infoSistem.UpdatedAt = time.Now()
 
-	query := `
-	UPDATE info_sistem
-	SET NamaAplikasi = ?, Logo = ?, UpdatedAt = ?
-	WHERE Id = ?
-	`
+	var query string
+	var args []interface{}
 
-	_, err := repo.db.ExecContext(ctx, query, infoSistem.NamaAplikasi, infoSistem.Logo, infoSistem.UpdatedAt, infoSistem.ID)
+	if infoSistem.Logo != "" {
+		query = `
+            UPDATE info_sistem
+            SET NamaAplikasi = ?, Logo = ?, UpdatedAt = ?
+            WHERE Id = ?
+        `
+		args = []interface{}{infoSistem.NamaAplikasi, infoSistem.Logo, infoSistem.UpdatedAt, infoSistem.ID}
+	} else {
+		query = `
+            UPDATE info_sistem
+            SET NamaAplikasi = ?, UpdatedAt = ?
+            WHERE Id = ?
+        `
+		args = []interface{}{infoSistem.NamaAplikasi, infoSistem.UpdatedAt, infoSistem.ID}
+	}
+
+	_, err := repo.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &infoSistem, nil
 }
+
+// func (repo *infoSistemRepository) UpdateInfoSistem(ctx context.Context, infoSistem models.InfoSistem) (*models.InfoSistem, error) {
+// 	infoSistem.UpdatedAt = time.Now()
+
+// 	query := `
+// 	UPDATE info_sistem
+// 	SET NamaAplikasi = ?, Logo = ?, UpdatedAt = ?
+// 	WHERE Id = ?
+// 	`
+
+// 	_, err := repo.db.ExecContext(ctx, query, infoSistem.NamaAplikasi, infoSistem.Logo, infoSistem.UpdatedAt, infoSistem.ID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &infoSistem, nil
+// }

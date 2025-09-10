@@ -188,7 +188,6 @@ func (svc *retensiService) Export(ctx context.Context) ([]byte, error) {
 	sheet := "Sheet1"
 	f.SetSheetName(f.GetSheetName(0), sheet)
 
-	// Header
 	headers := []string{
 		"ID", "Tanggal Laporan", "Status", "Jenis Kunjungan",
 		"NoRM", "Nama Pasien", "Jenis Kelamin", "Tanggal Lahir",
@@ -201,7 +200,6 @@ func (svc *retensiService) Export(ctx context.Context) ([]byte, error) {
 		f.SetCellValue(sheet, col+"1", h)
 	}
 
-	// Data
 	for i, row := range data {
 		r := i + 2
 		f.SetCellValue(sheet, "A"+strconv.Itoa(r), row.ID)

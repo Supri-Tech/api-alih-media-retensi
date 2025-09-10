@@ -231,7 +231,7 @@ func (svc *alihMediaService) CreateAndCheckAlihMedia(ctx context.Context, kunjun
 
 	now := time.Now()
 	if now.After(expirationDate) {
-		// Use GetAlihMediaByID to check if alih_media exists
+
 		existing, err := svc.repo.GetAlihMediaByID(ctx, kunjunganID)
 		if err != nil {
 			log.Printf("Error checking existing alih media: %v", err)
@@ -241,7 +241,7 @@ func (svc *alihMediaService) CreateAndCheckAlihMedia(ctx context.Context, kunjun
 		if existing == nil {
 			alihMedia := models.AlihMedia{
 				ID:         kunjunganID,
-				TglLaporan: nil, // Use current time instead of nil
+				TglLaporan: nil,
 				Status:     "belum di alih media",
 				CreatedAt:  time.Now(),
 				UpdatedAt:  time.Now(),
@@ -352,7 +352,6 @@ func (svc *alihMediaService) Export(ctx context.Context) ([]byte, error) {
 	sheet := "Sheet1"
 	f.SetSheetName(f.GetSheetName(0), sheet)
 
-	// Header
 	headers := []string{
 		"ID", "Tanggal Laporan", "Status", "Jenis Kunjungan",
 		"NoRM", "Nama Pasien", "Jenis Kelamin", "Tanggal Lahir",
@@ -365,7 +364,6 @@ func (svc *alihMediaService) Export(ctx context.Context) ([]byte, error) {
 		f.SetCellValue(sheet, col+"1", h)
 	}
 
-	// Data
 	for i, row := range data {
 		r := i + 2
 		f.SetCellValue(sheet, "A"+strconv.Itoa(r), row.ID)

@@ -30,6 +30,7 @@ func NewApplication(db *sql.DB) *App {
 	aliMediaRepo := repositories.NewRepoAlihMedia(db)
 	retensiRepo := repositories.NewRepoRetensi(db)
 	pemusnahanRepo := repositories.NewRepoPemusnahan(db)
+	generalRepo := repositories.NewRepoGeneral(db)
 
 	kasusService := services.NewServiceKasus(kasusRepo)
 	userService := services.NewServiceUser(userRepo)
@@ -40,6 +41,7 @@ func NewApplication(db *sql.DB) *App {
 	alihMediaService := services.NewServiceAlihMedia(aliMediaRepo, kunjunganRepo, kasusRepo)
 	retensiService := services.NewServiceRetensi(retensiRepo)
 	pemusnahanService := services.NewServicePemusnahan(pemusnahanRepo)
+	generalService := services.NewServiceGeneral(generalRepo)
 
 	kasusHandler := handler.NewKasusHandler(kasusService)
 	userHandler := handler.NewUserHandler(userService)
@@ -49,6 +51,7 @@ func NewApplication(db *sql.DB) *App {
 	alihMediaHandler := handler.NewAlihMediaHandler(alihMediaService)
 	retensiHandler := handler.NewRetensiHandler(retensiService)
 	pemusnahanHandler := handler.NewPemusnahanHandler(pemusnahanService)
+	generalHandler := handler.NewGeneralHandler(generalService)
 
 	cronService := services.NewCronService(kunjunganRepo, kasusRepo, aliMediaRepo)
 	cronHandler := handler.NewCronHandler(cronService)
@@ -83,6 +86,7 @@ func NewApplication(db *sql.DB) *App {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			pkg.Success(w, "Miaw", nil)
 		})
+		generalHandler.GeneralRoutes(r)
 		userHandler.UserRoutes(r)
 		userHandler.UserAdminRoutes(r)
 		kasusHandler.KasusRoutes(r)
