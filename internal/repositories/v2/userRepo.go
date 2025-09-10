@@ -12,9 +12,12 @@ type UserRepository interface {
 	GetAllUsers(ctx context.Context, limit, offset int) ([]*models.User, error)
 	GetTotalUsers(ctx context.Context) (int, error)
 	GetByUsername(ctx context.Context, username string) (*models.User, error)
+	GetByID(ctx context.Context, id int) (*models.User, error) // 🔹 baru
 	Create(ctx context.Context, user models.User) (*models.User, error)
 	UpdateData(ctx context.Context, user models.User) (*models.User, error)
 	UpdateStatus(ctx context.Context, user models.User) (*models.User, error)
+	UpdateProfile(ctx context.Context, user models.User) (*models.User, error) // 🔹 baru
+	UpdatePassword(ctx context.Context, id int, hashedPassword string) error   // 🔹 baru
 }
 
 type userrepository struct {
@@ -125,32 +128,111 @@ func (repo *userrepository) Create(ctx context.Context, user models.User) (*mode
 
 func (repo *userrepository) UpdateData(ctx context.Context, user models.User) (*models.User, error) {
 	query := `
-	UPDATE users 
-	SET Name = ?, Email = ?, Role = ?, Status = ?
-	WHERE email = ?
-	LIMIT 1
+		UPDATE users 
+		SET Name = ?, Email = ?, Role = ?, Status = ?
+		WHERE id = ?
+		LIMIT 1
 	`
 
-	_, err := repo.db.ExecContext(ctx, query, user.Status, user.Email)
+	_, err := repo.db.ExecContext(ctx, query,
+		user.Name,
+		user.Email,
+		user.Role,
+		user.Status,
+		user.ID,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return repo.GetByUsername(ctx, user.Email)
+	return repo.GetByID(ctx, user.ID)
 }
 
 func (repo *userrepository) UpdateStatus(ctx context.Context, user models.User) (*models.User, error) {
 	query := `
-	UPDATE users 
-	SET status = ? 
-	WHERE email = ?
+		UPDATE users 
+		SET Status = ?
+		WHERE id = ?
+		LIMIT 1
 	`
 
-	user.Status = "aktif"
-	_, err := repo.db.ExecContext(ctx, query, user.Status, user.Email)
+	_, err := repo.db.ExecContext(ctx, query,
+		user.Status,
+		user.ID,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return repo.GetByUsername(ctx, user.Email)
+	return repo.GetByID(ctx, user.ID)
+}
+
+// func (repo *userrepository) UpdateData(ctx context.Context, user models.User) (*models.User, error) {
+// 	query := `
+// 	UPDATE users
+// 	SET Name = ?, Email = ?, Role = ?, Status = ?
+// 	WHERE email = ?
+// 	LIMIT 1
+// 	`
+
+// 	_, err := repo.db.ExecContext(ctx, query, user.Status, user.Email)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return repo.GetByUsername(ctx, user.Email)
+// }
+
+// func (repo *userrepository) UpdateStatus(ctx context.Context, user models.User) (*models.User, error) {
+// 	query := `
+// 	UPDATE users
+// 	SET status = ?
+// 	WHERE email = ?
+// 	`
+
+// 	user.Status = "aktif"
+// 	_, err := repo.db.ExecContext(ctx, query, user.Status, user.Email)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return repo.GetByUsername(ctx, user.Email)
+// }
+
+func (repo *userrepository) GetByID(ctx context.Context, id int) (*models.User, error) {
+	query := `SELECT id, name, email, password, role, status FROM users WHERE id = ? LIMIT 1`
+	row := repo.db.QueryRowContext(ctx, query, id)
+
+	var user models.User
+	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role, &user.Status)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (repo *userrepository) UpdateProfile(ctx context.Context, user models.User) (*models.User, error) {
+	query := `
+	UPDATE users 
+	SET name = ?, email = ?
+	WHERE id = ?
+	`
+	_, err := repo.db.ExecContext(ctx, query, user.Name, user.Email, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	return repo.GetByID(ctx, user.ID)
+}
+
+func (repo *userrepository) UpdatePassword(ctx context.Context, id int, hashedPassword string) error {
+	query := `
+	UPDATE users 
+	SET password = ?
+	WHERE id = ?
+	`
+	_, err := repo.db.ExecContext(ctx, query, hashedPassword, id)
+	return err
 }

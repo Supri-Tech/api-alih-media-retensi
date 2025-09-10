@@ -9,6 +9,7 @@ import (
 )
 
 type PasienRepository interface {
+	GetStatistikPasien(ctx context.Context) (int, int, int, error)
 	GetAllPasien(ctx context.Context, limit, offset int) ([]*models.Pasien, error)
 	GetTotalPasien(ctx context.Context) (int, error)
 	GetPasienByID(ctx context.Context, id int) (*models.Pasien, error)
@@ -29,6 +30,24 @@ func NewRepoPasien(db *sql.DB) PasienRepository {
 	return &pasienRepository{
 		db: db,
 	}
+}
+
+func (repo *pasienRepository) GetStatistikPasien(ctx context.Context) (int, int, int, error) {
+	var total, aktif, nonAktif int
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pasien`).Scan(&total); err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pasien WHERE Status = 'aktif'`).Scan(&aktif); err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pasien WHERE Status != 'aktif'`).Scan(&nonAktif); err != nil {
+		return 0, 0, 0, err
+	}
+
+	return total, aktif, nonAktif, nil
 }
 
 func (repo *pasienRepository) GetAllPasien(ctx context.Context, limit, offset int) ([]*models.Pasien, error) {

@@ -9,12 +9,15 @@ import (
 )
 
 type PemusnahanRepository interface {
+	GetStatistikPemusnahan(ctx context.Context) (int, int, int, error)
+
 	GetAllPemusnahan(ctx context.Context, limit, offset int) ([]*models.PemusnahanJoin, error)
 	GetPemusnahanByID(ctx context.Context, id int) (*models.PemusnahanJoin, error)
 	GetTotalPemusnahan(ctx context.Context) (int, error)
 	CreatePemusnahan(ctx context.Context, pemusnahan *models.Pemusnahan) (*models.Pemusnahan, error)
 	UpdatePemusnahan(ctx context.Context, pemusnahan models.Pemusnahan) (*models.Pemusnahan, error)
 	DeletePemusnahan(ctx context.Context, id int) error
+	GetAllPemusnahanForExport(ctx context.Context) ([]*models.PemusnahanJoin, error)
 }
 
 type pemusnahanRepository struct {
@@ -25,6 +28,24 @@ func NewRepoPemusnahan(db *sql.DB) PemusnahanRepository {
 	return &pemusnahanRepository{
 		db: db,
 	}
+}
+
+func (repo *pemusnahanRepository) GetStatistikPemusnahan(ctx context.Context) (int, int, int, error) {
+	var total, sudah, belum int
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pemusnahan`).Scan(&total); err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pemusnahan WHERE Status = 'sudah di musnahkan'`).Scan(&sudah); err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pemusnahan WHERE Status = 'belum di musnahkan'`).Scan(&belum); err != nil {
+		return 0, 0, 0, err
+	}
+
+	return total, sudah, belum, nil
 }
 
 func (repo *pemusnahanRepository) GetAllPemusnahan(ctx context.Context, limit, offset int) ([]*models.PemusnahanJoin, error) {
@@ -65,9 +86,6 @@ func (repo *pemusnahanRepository) GetAllPemusnahan(ctx context.Context, limit, o
 
 	rows, err := repo.db.QueryContext(ctx, query, limit, offset)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, err
-		}
 		return nil, err
 	}
 	defer rows.Close()
@@ -106,10 +124,6 @@ func (repo *pemusnahanRepository) GetAllPemusnahan(ctx context.Context, limit, o
 		}
 
 		pemusnahan = append(pemusnahan, &pms)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
 	}
 
 	return pemusnahan, nil
@@ -254,4 +268,75 @@ func (repo *pemusnahanRepository) DeletePemusnahan(ctx context.Context, id int) 
 	}
 
 	return nil
+}
+
+func (repo *pemusnahanRepository) GetAllPemusnahanForExport(ctx context.Context) ([]*models.PemusnahanJoin, error) {
+	query := `
+		SELECT
+			pemusnahan.Id AS Id,
+			pemusnahan.TglLaporan,
+			pemusnahan.Status,
+			kunjungan.JenisKunjungan,
+			pasien.NoRM,
+			pasien.NamaPasien,
+			pasien.JenisKelamin,
+			pasien.TglLahir,
+			pasien.Alamat,
+			pasien.Status AS StatusPasien,
+			kasus.JenisKasus,
+			kasus.MasaAktifRi,
+			kasus.MasaInaktifRi,
+			kasus.MasaAktifRj,
+			kasus.MasaInaktifRj,
+			kasus.InfoLain
+		FROM pemusnahan
+		INNER JOIN kunjungan ON kunjungan.Id = pemusnahan.Id
+		INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+		INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+		ORDER BY pemusnahan.TglLaporan DESC
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*models.PemusnahanJoin
+	for rows.Next() {
+		var am models.PemusnahanJoin
+		var tglLaporan sql.NullTime
+
+		err := rows.Scan(
+			&am.ID,
+			&tglLaporan,
+			&am.Status,
+			&am.JenisKunjungan,
+			&am.NoRM,
+			&am.NamaPasien,
+			&am.JenisKelamin,
+			&am.TglLahir,
+			&am.Alamat,
+			&am.StatusPasien,
+			&am.JenisKasus,
+			&am.MasaAktifRi,
+			&am.MasaInaktifRi,
+			&am.MasaAktifRj,
+			&am.MasaInaktifRj,
+			&am.InfoLain,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if tglLaporan.Valid {
+			am.TglLaporan = &tglLaporan.Time
+		} else {
+			am.TglLaporan = nil
+		}
+
+		result = append(result, &am)
+	}
+
+	return result, nil
 }

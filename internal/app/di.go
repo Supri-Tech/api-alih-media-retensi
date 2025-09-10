@@ -84,6 +84,7 @@ func NewApplication(db *sql.DB) *App {
 			pkg.Success(w, "Miaw", nil)
 		})
 		userHandler.UserRoutes(r)
+		userHandler.UserAdminRoutes(r)
 		kasusHandler.KasusRoutes(r)
 		PasienHandler.PasienRoutes(r)
 		kunjunganHandler.KunjunganRoutes(r)

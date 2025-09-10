@@ -50,18 +50,19 @@ func (repo *infoSistemRepository) GetAllInfoSistem(ctx context.Context, infoSist
 
 func (repo *infoSistemRepository) GetInfoSistem(ctx context.Context, id int) (*models.InfoSistem, error) {
 	query := `
-	SELECT NamaAplikasi, Logo, CreatedAt
-	FROM info_sistem
-	WHERE NamaAplikasi = ?
-	LIMIT 1
-	`
-
+    SELECT Id, NamaAplikasi, Logo, CreatedAt, UpdatedAt
+    FROM info_sistem
+    WHERE Id = ?
+    LIMIT 1
+    `
 	var infoSistem models.InfoSistem
 	row := repo.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
+		&infoSistem.ID,
 		&infoSistem.NamaAplikasi,
 		&infoSistem.Logo,
 		&infoSistem.CreatedAt,
+		&infoSistem.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -95,6 +96,8 @@ func (repo *infoSistemRepository) CreateInfoSistem(ctx context.Context, infoSist
 }
 
 func (repo *infoSistemRepository) UpdateInfoSistem(ctx context.Context, infoSistem models.InfoSistem) (*models.InfoSistem, error) {
+	infoSistem.UpdatedAt = time.Now()
+
 	query := `
 	UPDATE info_sistem
 	SET NamaAplikasi = ?, Logo = ?, UpdatedAt = ?

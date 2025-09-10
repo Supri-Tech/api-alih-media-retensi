@@ -37,6 +37,7 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 	query := `
 	SELECT
 		kunjungan.Id,
+		pasien.Id AS IDPasien,
 		pasien.NamaPasien AS NamaPasien,
 		pasien.NoRM AS NoRM,
 		pasien.NIK AS NIK,
@@ -77,6 +78,7 @@ func (repo *kunjunganRepository) GetAllKunjungan(ctx context.Context, limit, off
 
 		err := rows.Scan(
 			&k.ID,
+			&k.IDPasien,
 			&k.NamaPasien,
 			&k.NoRM,
 			&k.NIK,
@@ -188,6 +190,7 @@ func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (
 	query := `
 	SELECT
 		kunjungan.Id,
+		pasien.Id AS IDPasien,
 		pasien.NamaPasien AS NamaPasien,
 		pasien.NoRM AS NoRM,
 		pasien.NIK AS NIK,
@@ -218,6 +221,7 @@ func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (
 	row := repo.db.QueryRowContext(ctx, query, id)
 	err := row.Scan(
 		&k.ID,
+		&k.IDPasien,
 		&k.NamaPasien,
 		&k.NoRM,
 		&k.NIK,

@@ -9,12 +9,14 @@ import (
 )
 
 type RetensiRepository interface {
+	GetStatistikRetensi(ctx context.Context) (int, int, int, error)
 	GetAllRetensi(ctx context.Context, limit, offset int) ([]*models.RetensiJoin, error)
 	GetRetensiByID(ctx context.Context, id int) (*models.RetensiJoin, error)
 	GetTotalRetensi(ctx context.Context) (int, error)
 	CreateRetensi(ctx context.Context, retensi *models.Retensi) (*models.Retensi, error)
 	UpdateRetensi(ctx context.Context, retensi models.Retensi) (*models.Retensi, error)
 	DeleteRetensi(ctx context.Context, id int) error
+	GetAllRetensiForExport(ctx context.Context) ([]*models.RetensiJoin, error)
 }
 
 type retensiRepository struct {
@@ -25,6 +27,24 @@ func NewRepoRetensi(db *sql.DB) RetensiRepository {
 	return &retensiRepository{
 		db: db,
 	}
+}
+
+func (repo *retensiRepository) GetStatistikRetensi(ctx context.Context) (int, int, int, error) {
+	var total, sudah, belum int
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM retensi`).Scan(&total); err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM retensi WHERE Status = 'sudah di retensi'`).Scan(&sudah); err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM retensi WHERE Status = 'belum di retensi'`).Scan(&belum); err != nil {
+		return 0, 0, 0, err
+	}
+
+	return total, sudah, belum, nil
 }
 
 func (repo *retensiRepository) GetAllRetensi(ctx context.Context, limit, offset int) ([]*models.RetensiJoin, error) {
@@ -254,4 +274,75 @@ func (repo *retensiRepository) DeleteRetensi(ctx context.Context, id int) error 
 	}
 
 	return nil
+}
+
+func (repo *retensiRepository) GetAllRetensiForExport(ctx context.Context) ([]*models.RetensiJoin, error) {
+	query := `
+		SELECT
+			retensi.Id AS Id,
+			retensi.TglLaporan,
+			retensi.Status,
+			kunjungan.JenisKunjungan,
+			pasien.NoRM,
+			pasien.NamaPasien,
+			pasien.JenisKelamin,
+			pasien.TglLahir,
+			pasien.Alamat,
+			pasien.Status AS StatusPasien,
+			kasus.JenisKasus,
+			kasus.MasaAktifRi,
+			kasus.MasaInaktifRi,
+			kasus.MasaAktifRj,
+			kasus.MasaInaktifRj,
+			kasus.InfoLain
+		FROM retensi
+		INNER JOIN kunjungan ON kunjungan.Id = retensi.Id
+		INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+		INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+		ORDER BY retensi.TglLaporan DESC
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*models.RetensiJoin
+	for rows.Next() {
+		var am models.RetensiJoin
+		var tglLaporan sql.NullTime
+
+		err := rows.Scan(
+			&am.ID,
+			&tglLaporan,
+			&am.Status,
+			&am.JenisKunjungan,
+			&am.NoRM,
+			&am.NamaPasien,
+			&am.JenisKelamin,
+			&am.TglLahir,
+			&am.Alamat,
+			&am.StatusPasien,
+			&am.JenisKasus,
+			&am.MasaAktifRi,
+			&am.MasaInaktifRi,
+			&am.MasaAktifRj,
+			&am.MasaInaktifRj,
+			&am.InfoLain,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if tglLaporan.Valid {
+			am.TglLaporan = &tglLaporan.Time
+		} else {
+			am.TglLaporan = nil
+		}
+
+		result = append(result, &am)
+	}
+
+	return result, nil
 }

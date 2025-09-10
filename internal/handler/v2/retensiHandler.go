@@ -30,6 +30,7 @@ func (hdl *RetensiHandler) RetensiRoutes(router chi.Router) {
 		r.Post("/retensi", hdl.Create)
 		r.Put("/retensi/{id}", hdl.Update)
 		r.Delete("/retensi/{id}", hdl.Delete)
+		r.Get("/retensi/export", hdl.Export)
 	})
 }
 
@@ -101,8 +102,9 @@ func (hdl *RetensiHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type UpdateRetensi struct {
-		TanggalLaporan string `json:"TglLaporan"`
-		Status         string `json:"Status"`
+		ID             int        `json:"IdKunjungan"`
+		TanggalLaporan *time.Time `json:"TglLaporan"`
+		Status         string     `json:"Status"`
 	}
 
 	var req UpdateRetensi
@@ -111,19 +113,9 @@ func (hdl *RetensiHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tglLaporan *time.Time
-	if req.TanggalLaporan != "" {
-		parsedTime, err := time.Parse("2006-01-02", req.TanggalLaporan)
-		if err != nil {
-			pkg.Error(w, http.StatusBadRequest, "Invalid date format. Use YYYY-MM-DD")
-			return
-		}
-		tglLaporan = &parsedTime
-	}
-
 	retensi := models.Retensi{
 		ID:         id,
-		TglLaporan: tglLaporan,
+		TglLaporan: req.TanggalLaporan,
 		Status:     req.Status,
 	}
 
@@ -150,4 +142,18 @@ func (hdl *RetensiHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data deleted", nil)
+}
+
+func (h *RetensiHandler) Export(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	data, err := h.service.Export(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=retensi.xlsx")
+	w.Write(data)
 }

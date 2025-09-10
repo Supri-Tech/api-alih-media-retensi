@@ -9,6 +9,7 @@ import (
 )
 
 type KasusRepository interface {
+	GetStatistikKasus(ctx context.Context) (float64, float64, float64, float64, error)
 	GetAllKasus(ctx context.Context, limit, offset int) ([]*models.Kasus, error)
 	GetTotalKasus(ctx context.Context) (int, error)
 	GetKasusByID(ctx context.Context, id int) (*models.Kasus, error)
@@ -26,6 +27,31 @@ func NewRepoKasus(db *sql.DB) KasusRepository {
 	return &kasusRepository{
 		db: db,
 	}
+}
+
+func (repo *kasusRepository) GetStatistikKasus(ctx context.Context) (float64, float64, float64, float64, error) {
+	var rataAktifRI, rataInaktifRI, rataAktifRJ, rataInaktifRJ float64
+
+	query := `
+        SELECT 
+            AVG(MasaAktifRI),
+            AVG(MasaInaktifRI),
+            AVG(MasaAktifRJ),
+            AVG(MasaInaktifRJ)
+        FROM kasus
+    `
+
+	err := repo.db.QueryRowContext(ctx, query).Scan(
+		&rataAktifRI,
+		&rataInaktifRI,
+		&rataAktifRJ,
+		&rataInaktifRJ,
+	)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	return rataAktifRI, rataInaktifRI, rataAktifRJ, rataInaktifRJ, nil
 }
 
 func (repo *kasusRepository) GetAllKasus(ctx context.Context, limit, offset int) ([]*models.Kasus, error) {

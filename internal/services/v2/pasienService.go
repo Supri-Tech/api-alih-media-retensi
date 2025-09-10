@@ -45,10 +45,17 @@ func NewServicePasien(repo repositories.PasienRepository) PasienService {
 
 type PasienPagination struct {
 	Data       []*models.Pasien `json:"data"`
+	Statistik  PasienStatistik  `json:"statistik"`
 	Total      int              `json:"total"`
 	Page       int              `json:"page"`
 	PerPage    int              `json:"per_page"`
 	TotalPages int              `json:"total_pages"`
+}
+
+type PasienStatistik struct {
+	Total           int `json:"total"`
+	TotalAktif      int `json:"total_aktif"`
+	TotalTidakAktif int `json:"total_tidak_aktif"`
 }
 
 func (svc *pasienService) GetAll(ctx context.Context, page, perPage int) (*PasienPagination, error) {
@@ -66,7 +73,7 @@ func (svc *pasienService) GetAll(ctx context.Context, page, perPage int) (*Pasie
 		return nil, err
 	}
 
-	total, err := svc.repo.GetTotalPasien(ctx)
+	total, aktif, tidak_aktif, err := svc.repo.GetStatistikPasien(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +89,47 @@ func (svc *pasienService) GetAll(ctx context.Context, page, perPage int) (*Pasie
 		Page:       page,
 		PerPage:    perPage,
 		TotalPages: totalPages,
+		Statistik: PasienStatistik{
+			Total:           total,
+			TotalAktif:      aktif,
+			TotalTidakAktif: tidak_aktif,
+		},
 	}, nil
 }
+
+// func (svc *pasienService) GetAll(ctx context.Context, page, perPage int) (*PasienPagination, error) {
+// 	if page < 1 {
+// 		page = 1
+// 	}
+// 	if perPage < 1 || perPage > 100 {
+// 		perPage = 10
+// 	}
+
+// 	offset := (page - 1) * perPage
+
+// 	pasien, err := svc.repo.GetAllPasien(ctx, perPage, offset)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	total, err := svc.repo.GetTotalPasien(ctx)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	totalPages := total / perPage
+// 	if total%perPage > 0 {
+// 		totalPages++
+// 	}
+
+// 	return &PasienPagination{
+// 		Data:       pasien,
+// 		Total:      total,
+// 		Page:       page,
+// 		PerPage:    perPage,
+// 		TotalPages: totalPages,
+// 	}, nil
+// }
 
 func (svc *pasienService) GetByID(ctx context.Context, id int) (*models.Pasien, error) {
 	if id <= 0 {

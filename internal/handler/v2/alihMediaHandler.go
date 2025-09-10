@@ -30,6 +30,7 @@ func (hdl *AlihMediaHandler) AlihMediaRoutes(router chi.Router) {
 		r.Post("/alih-media", hdl.Create)
 		r.Put("/alih-media/{id}", hdl.Update)
 		r.Delete("/alih-media/{id}", hdl.Delete)
+		r.Get("/alih-media/export", hdl.Export)
 	})
 }
 
@@ -124,7 +125,7 @@ func (hdl *AlihMediaHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pkg.Success(w, "Pasien updated", updatedAlihMedia)
+	pkg.Success(w, "Alih media updated", updatedAlihMedia)
 }
 
 func (hdl *AlihMediaHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -141,4 +142,18 @@ func (hdl *AlihMediaHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data deleted", nil)
+}
+
+func (h *AlihMediaHandler) Export(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	data, err := h.service.Export(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=alih_media.xlsx")
+	w.Write(data)
 }

@@ -53,7 +53,7 @@ func (hdl *InfoSistemHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	info, err := hdl.service.GetInfoSistem(r.Context(), id)
 	if err != nil {
-		if err.Error() == "Kasus not found" {
+		if err.Error() == "Info not found" {
 			pkg.Error(w, http.StatusNotFound, err.Error())
 		} else {
 			pkg.Error(w, http.StatusInternalServerError, err.Error())

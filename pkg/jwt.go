@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"context"
 	"os"
 	"time"
 
@@ -43,4 +44,24 @@ func VerifyToken(tokenStr string) (jwt.MapClaims, error) {
 	}
 
 	return nil, jwt.ErrTokenInvalidClaims
+}
+
+func GetUserIDFromCtx(ctx context.Context) int {
+	uid, ok := ctx.Value("userID").(int)
+	if !ok {
+		return 0
+	}
+	return uid
+}
+
+func SetUserRoleToCtx(ctx context.Context, role string) context.Context {
+	return context.WithValue(ctx, "userRole", role)
+}
+
+func GetUserRoleFromCtx(ctx context.Context) string {
+	role, ok := ctx.Value("userRole").(string)
+	if !ok {
+		return ""
+	}
+	return role
 }

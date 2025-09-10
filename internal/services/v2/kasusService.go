@@ -44,6 +44,14 @@ type KasusPagination struct {
 	Page       int             `json:"page"`
 	PerPage    int             `json:"per_page"`
 	TotalPages int             `json:"total_pages"`
+	Statistik  KasusStatistik  `json:"statistik"`
+}
+
+type KasusStatistik struct {
+	RataMasaAktifRI   float64 `json:"rata_masa_aktif_ri"`
+	RataMasaInaktifRI float64 `json:"rata_masa_inaktif_ri"`
+	RataMasaAktifRJ   float64 `json:"rata_masa_aktif_rj"`
+	RataMasaInaktifRJ float64 `json:"rata_masa_inaktif_rj"`
 }
 
 func (svc *kasusService) GetAll(ctx context.Context, page, perPage int) (*KasusPagination, error) {
@@ -66,6 +74,11 @@ func (svc *kasusService) GetAll(ctx context.Context, page, perPage int) (*KasusP
 		return nil, err
 	}
 
+	rataAktifRI, rataInaktifRI, rataAktifRJ, rataInaktifRJ, err := svc.repo.GetStatistikKasus(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	totalPages := total / perPage
 	if total%perPage > 0 {
 		totalPages++
@@ -77,8 +90,48 @@ func (svc *kasusService) GetAll(ctx context.Context, page, perPage int) (*KasusP
 		Page:       page,
 		PerPage:    perPage,
 		TotalPages: totalPages,
+		Statistik: KasusStatistik{
+			RataMasaAktifRI:   rataAktifRI,
+			RataMasaInaktifRI: rataInaktifRI,
+			RataMasaAktifRJ:   rataAktifRJ,
+			RataMasaInaktifRJ: rataInaktifRJ,
+		},
 	}, nil
 }
+
+// func (svc *kasusService) GetAll(ctx context.Context, page, perPage int) (*KasusPagination, error) {
+// 	if page < 1 {
+// 		page = 1
+// 	}
+// 	if perPage < 1 || perPage > 100 {
+// 		perPage = 10
+// 	}
+
+// 	offset := (page - 1) * perPage
+
+// 	kasus, err := svc.repo.GetAllKasus(ctx, perPage, offset)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	total, err := svc.repo.GetTotalKasus(ctx)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	totalPages := total / perPage
+// 	if total%perPage > 0 {
+// 		totalPages++
+// 	}
+
+// 	return &KasusPagination{
+// 		Data:       kasus,
+// 		Total:      total,
+// 		Page:       page,
+// 		PerPage:    perPage,
+// 		TotalPages: totalPages,
+// 	}, nil
+// }
 
 func (svc *kasusService) GetByID(ctx context.Context, id int) (*models.Kasus, error) {
 	if id <= 0 {

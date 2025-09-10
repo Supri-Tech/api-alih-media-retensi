@@ -11,6 +11,7 @@ import (
 )
 
 type AlihMediaRepository interface {
+	GetStatistikAlihMedia(ctx context.Context) (int, int, int, error)
 	GetAllAlihMedia(ctx context.Context, limit, offset int) ([]*models.AlihMediaJoin, error)
 	GetAlihMediaByIDKunjungan(ctx context.Context, id int) (*models.AlihMediaJoin, error)
 	GetAlihMediaByID(ctx context.Context, id int) (*models.AlihMedia, error)
@@ -18,6 +19,7 @@ type AlihMediaRepository interface {
 	CreateAlihMedia(ctx context.Context, alihMedia *models.AlihMedia) (*models.AlihMedia, error)
 	UpdateAlihMedia(ctx context.Context, alihMedia models.AlihMedia) (*models.AlihMedia, error)
 	DeleteAlihMedia(ctx context.Context, id int) error
+	GetAllAlihMediaForExport(ctx context.Context) ([]*models.AlihMediaJoin, error)
 }
 
 type alihMediaRepository struct {
@@ -28,6 +30,24 @@ func NewRepoAlihMedia(db *sql.DB) AlihMediaRepository {
 	return &alihMediaRepository{
 		db: db,
 	}
+}
+
+func (repo *alihMediaRepository) GetStatistikAlihMedia(ctx context.Context) (int, int, int, error) {
+	var total, sudah, belum int
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM alih_media`).Scan(&total); err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM alih_media WHERE Status = 'sudah di alih media'`).Scan(&sudah); err != nil {
+		return 0, 0, 0, err
+	}
+
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM alih_media WHERE Status = 'belum di alih media'`).Scan(&belum); err != nil {
+		return 0, 0, 0, err
+	}
+
+	return total, sudah, belum, nil
 }
 
 func (repo *alihMediaRepository) GetAllAlihMedia(ctx context.Context, limit, offset int) ([]*models.AlihMediaJoin, error) {
@@ -288,4 +308,75 @@ func (repo *alihMediaRepository) DeleteAlihMedia(ctx context.Context, id int) er
 	}
 
 	return nil
+}
+
+func (repo *alihMediaRepository) GetAllAlihMediaForExport(ctx context.Context) ([]*models.AlihMediaJoin, error) {
+	query := `
+		SELECT
+			alih_media.Id AS Id,
+			alih_media.TglLaporan,
+			alih_media.Status,
+			kunjungan.JenisKunjungan,
+			pasien.NoRM,
+			pasien.NamaPasien,
+			pasien.JenisKelamin,
+			pasien.TglLahir,
+			pasien.Alamat,
+			pasien.Status AS StatusPasien,
+			kasus.JenisKasus,
+			kasus.MasaAktifRi,
+			kasus.MasaInaktifRi,
+			kasus.MasaAktifRj,
+			kasus.MasaInaktifRj,
+			kasus.InfoLain
+		FROM alih_media
+		INNER JOIN kunjungan ON kunjungan.Id = alih_media.Id
+		INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+		INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+		ORDER BY alih_media.TglLaporan DESC
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*models.AlihMediaJoin
+	for rows.Next() {
+		var am models.AlihMediaJoin
+		var tglLaporan sql.NullTime
+
+		err := rows.Scan(
+			&am.ID,
+			&tglLaporan,
+			&am.Status,
+			&am.JenisKunjungan,
+			&am.NoRM,
+			&am.NamaPasien,
+			&am.JenisKelamin,
+			&am.TglLahir,
+			&am.Alamat,
+			&am.StatusPasien,
+			&am.JenisKasus,
+			&am.MasaAktifRi,
+			&am.MasaInaktifRi,
+			&am.MasaAktifRj,
+			&am.MasaInaktifRj,
+			&am.InfoLain,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if tglLaporan.Valid {
+			am.TglLaporan = &tglLaporan.Time
+		} else {
+			am.TglLaporan = nil
+		}
+
+		result = append(result, &am)
+	}
+
+	return result, nil
 }

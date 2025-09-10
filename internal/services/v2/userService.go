@@ -13,10 +13,18 @@ type UserService interface {
 	GetAll(ctx context.Context, page, perPage int) (*UserPagination, error)
 	Create(ctx context.Context, user models.User) (*models.User, error)
 	GetDetail(ctx context.Context, email string) (*models.User, error)
-	Update(ctx context.Context, email, password, role, status string) (*models.User, error)
+	Update(ctx context.Context, user models.User) (*models.User, error)
+	UpdateStatus(ctx context.Context, id int, status string) (*models.User, error)
+	Activation(ctx context.Context, id int) (*models.User, error)
+	DeleteUser(ctx context.Context, id int) (*models.User, error)
+	// Update(ctx context.Context, name, email, password, role, status string) (*models.User, error)
+	// UpdateStatus(ctx context.Context, user models.User) (*models.User, error)
 	Login(ctx context.Context, email, password string) (string, error)
 	Register(ctx context.Context, user models.User) (*models.User, error)
-	Activation(ctx context.Context, email string) (*models.User, error)
+	// Activation(ctx context.Context, email string) (*models.User, error)
+	GetProfile(ctx context.Context, id int) (*models.User, error)
+	UpdateProfile(ctx context.Context, user models.User) (*models.User, error)
+	ChangePassword(ctx context.Context, id int, oldPassword, newPassword string) error
 }
 
 type userService struct {
@@ -148,22 +156,16 @@ func (svc *userService) Register(ctx context.Context, user models.User) (*models
 	return newUser, nil
 }
 
-func (svc *userService) Update(ctx context.Context, email, password, role, status string) (*models.User, error) {
-	existing, err := svc.repo.GetByUsername(ctx, email)
+func (svc *userService) Update(ctx context.Context, user models.User) (*models.User, error) {
+	existing, err := svc.repo.GetByID(ctx, user.ID)
 	if err != nil {
 		return nil, err
 	}
-
 	if existing == nil {
 		return nil, errors.New("User not found")
 	}
 
-	updatedUser, err := svc.repo.UpdateData(ctx, models.User{
-		Email:    email,
-		Password: password,
-		Role:     role,
-		Status:   status,
-	})
+	updatedUser, err := svc.repo.UpdateData(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -171,23 +173,18 @@ func (svc *userService) Update(ctx context.Context, email, password, role, statu
 	return updatedUser, nil
 }
 
-func (svc *userService) DeleteUser(ctx context.Context, email string) (*models.User, error) {
-	existing, err := svc.repo.GetByUsername(ctx, email)
+func (svc *userService) UpdateStatus(ctx context.Context, id int, status string) (*models.User, error) {
+	existing, err := svc.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-
 	if existing == nil {
 		return nil, errors.New("User not found")
-	}
-
-	if existing.Status == "tidak aktif" {
-		return nil, errors.New("User is already inactive")
 	}
 
 	updatedUser, err := svc.repo.UpdateStatus(ctx, models.User{
-		Email:  email,
-		Status: "tidak aktif",
+		ID:     id,
+		Status: status,
 	})
 	if err != nil {
 		return nil, err
@@ -196,27 +193,172 @@ func (svc *userService) DeleteUser(ctx context.Context, email string) (*models.U
 	return updatedUser, nil
 }
 
-func (svc *userService) Activation(ctx context.Context, email string) (*models.User, error) {
-	existing, err := svc.repo.GetByUsername(ctx, email)
+func (svc *userService) Activation(ctx context.Context, id int) (*models.User, error) {
+	existing, err := svc.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-
 	if existing == nil {
 		return nil, errors.New("User not found")
 	}
-
 	if existing.Status == "aktif" {
 		return nil, errors.New("User is already active")
 	}
 
-	updatedUser, err := svc.repo.UpdateStatus(ctx, models.User{
-		Email:  email,
-		Status: "aktif",
-	})
+	return svc.UpdateStatus(ctx, id, "aktif")
+}
+
+func (svc *userService) DeleteUser(ctx context.Context, id int) (*models.User, error) {
+	existing, err := svc.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+	if existing == nil {
+		return nil, errors.New("User not found")
+	}
+	if existing.Status == "tidak aktif" {
+		return nil, errors.New("User is already inactive")
+	}
 
+	return svc.UpdateStatus(ctx, id, "tidak aktif")
+}
+
+// func (svc *userService) Update(ctx context.Context, name, email, password, role, status string) (*models.User, error) {
+// 	existing, err := svc.repo.GetByUsername(ctx, email)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	if existing == nil {
+// 		return nil, errors.New("User not found")
+// 	}
+
+// 	updatedUser, err := svc.repo.UpdateData(ctx, models.User{
+// 		Name:     name,
+// 		Email:    email,
+// 		Password: password,
+// 		Role:     role,
+// 		Status:   status,
+// 	})
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return updatedUser, nil
+// }
+
+// func (svc *userService) DeleteUser(ctx context.Context, email string) (*models.User, error) {
+// 	existing, err := svc.repo.GetByUsername(ctx, email)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	if existing == nil {
+// 		return nil, errors.New("User not found")
+// 	}
+
+// 	if existing.Status == "tidak aktif" {
+// 		return nil, errors.New("User is already inactive")
+// 	}
+
+// 	updatedUser, err := svc.repo.UpdateStatus(ctx, models.User{
+// 		Email:  email,
+// 		Status: "tidak aktif",
+// 	})
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return updatedUser, nil
+// }
+
+// func (svc *userService) Activation(ctx context.Context, email string) (*models.User, error) {
+// 	existing, err := svc.repo.GetByUsername(ctx, email)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	if existing == nil {
+// 		return nil, errors.New("User not found")
+// 	}
+
+// 	if existing.Status == "aktif" {
+// 		return nil, errors.New("User is already active")
+// 	}
+
+// 	updatedUser, err := svc.repo.UpdateStatus(ctx, models.User{
+// 		Email:  email,
+// 		Status: "aktif",
+// 	})
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return updatedUser, nil
+// }
+
+func (svc *userService) GetProfile(ctx context.Context, id int) (*models.User, error) {
+	user, err := svc.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, errors.New("User not found")
+	}
+	return user, nil
+}
+
+func (svc *userService) UpdateProfile(ctx context.Context, user models.User) (*models.User, error) {
+	existing, err := svc.repo.GetByID(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, errors.New("User not found")
+	}
+
+	updatedUser, err := svc.repo.UpdateProfile(ctx, user)
+	if err != nil {
+		return nil, err
+	}
 	return updatedUser, nil
 }
+
+func (svc *userService) ChangePassword(ctx context.Context, id int, oldPassword, newPassword string) error {
+	user, err := svc.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return errors.New("User not found")
+	}
+
+	if !pkg.CheckPassword(user.Password, oldPassword) {
+		return errors.New("Old password is incorrect")
+	}
+
+	hashed, err := pkg.HashPassword(newPassword)
+	if err != nil {
+		return errors.New("Failed to hash password")
+	}
+
+	return svc.repo.UpdatePassword(ctx, id, hashed)
+}
+
+// func (svc *userService) UpdateStatus(ctx context.Context, user models.User) (*models.User, error) {
+// 	existing, err := svc.repo.GetByUsername(ctx, user.Email)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	if existing == nil {
+// 		return nil, errors.New("User not found")
+// 	}
+
+// 	updatedUser, err := svc.repo.UpdateStatus(ctx, user)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return updatedUser, nil
+// }

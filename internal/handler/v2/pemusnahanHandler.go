@@ -30,6 +30,8 @@ func (hdl *PemusnahanHandler) PemusnahanRoutes(router chi.Router) {
 		r.Post("/pemusnahan", hdl.Create)
 		r.Put("/pemusnahan/{id}", hdl.Update)
 		r.Delete("/pemusnahan/{id}", hdl.Delete)
+		r.Get("/pemusnahan/export", hdl.Export)
+
 	})
 }
 
@@ -150,4 +152,18 @@ func (hdl *PemusnahanHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data deleted", nil)
+}
+
+func (h *PemusnahanHandler) Export(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	data, err := h.service.Export(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename=pemusnahan.xlsx")
+	w.Write(data)
 }

@@ -13,6 +13,7 @@ type Kunjungan struct {
 
 type KunjunganJoin struct {
 	ID             int    // kunjungan
+	IDPasien       int    // pasien
 	NamaPasien     string // pasien
 	NoRM           string
 	NIK            string
