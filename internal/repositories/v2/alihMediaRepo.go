@@ -13,6 +13,7 @@ import (
 type AlihMediaRepository interface {
 	GetStatistikAlihMedia(ctx context.Context) (int, int, int, error)
 	GetAllAlihMedia(ctx context.Context, limit, offset int) ([]*models.AlihMediaJoin, error)
+	FindAlihMedia(ctx context.Context, filter map[string]interface{}) ([]*models.AlihMediaJoin, error)
 	GetAlihMediaByIDKunjungan(ctx context.Context, id int) (*models.AlihMediaJoin, error)
 	GetAlihMediaByID(ctx context.Context, id int) (*models.AlihMedia, error)
 	GetTotalAlihMedia(ctx context.Context) (int, error)
@@ -39,11 +40,11 @@ func (repo *alihMediaRepository) GetStatistikAlihMedia(ctx context.Context) (int
 		return 0, 0, 0, err
 	}
 
-	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM alih_media WHERE Status = 'sudah di alih media'`).Scan(&sudah); err != nil {
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM alih_media WHERE Status = 'Sudah dialih media'`).Scan(&sudah); err != nil {
 		return 0, 0, 0, err
 	}
 
-	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM alih_media WHERE Status = 'belum di alih media'`).Scan(&belum); err != nil {
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM alih_media WHERE Status = 'Belum dialih media'`).Scan(&belum); err != nil {
 		return 0, 0, 0, err
 	}
 
@@ -117,6 +118,90 @@ func (repo *alihMediaRepository) GetAllAlihMedia(ctx context.Context, limit, off
 	}
 
 	return alihMedia, nil
+}
+
+func (repo *alihMediaRepository) FindAlihMedia(ctx context.Context, filter map[string]interface{}) ([]*models.AlihMediaJoin, error) {
+	query := `
+	SELECT
+		alih_media.Id AS Id,
+		TglLaporan,
+		alih_media.Status AS Status,
+		JenisKunjungan,
+		pasien.NoRM AS NoRM,
+		NamaPasien,
+		JenisKelamin,
+		TglLahir,
+		Alamat,
+		pasien.Status AS StatusPasien,
+		JenisKasus,
+		MasaAktifRi,
+		MasaInaktifRi,
+		MasaAktifRj,
+		MasaInaktifRj,
+		InfoLain
+	FROM alih_media
+	INNER JOIN kunjungan ON kunjungan.Id = alih_media.Id
+	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	WHERE 1=1
+	`
+
+	var args []interface{}
+
+	if noRM, ok := filter["NoRM"]; ok {
+		query += " AND pasien.NoRM LIKE ?"
+		args = append(args, "%"+noRM.(string)+"%")
+	}
+	if name, ok := filter["NamaPasien"]; ok {
+		query += " AND pasien.NamaPasien LIKE ?"
+		args = append(args, "%"+name.(string)+"%")
+	}
+
+	if limit, ok := filter["Limit"]; ok {
+		query += " LIMIT ?"
+		args = append(args, limit)
+	} else {
+		query += " LIMIT 100"
+	}
+
+	rows, err := repo.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*models.AlihMediaJoin
+	for rows.Next() {
+		var am models.AlihMediaJoin
+		err := rows.Scan(
+			&am.ID,
+			&am.TglLaporan,
+			&am.Status,
+			&am.JenisKunjungan,
+			&am.NoRM,
+			&am.NamaPasien,
+			&am.JenisKelamin,
+			&am.TglLahir,
+			&am.Alamat,
+			&am.StatusPasien,
+			&am.JenisKasus,
+			&am.MasaAktifRi,
+			&am.MasaInaktifRi,
+			&am.MasaAktifRj,
+			&am.MasaInaktifRj,
+			&am.InfoLain,
+		)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, &am)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (repo *alihMediaRepository) GetTotalAlihMedia(ctx context.Context) (int, error) {

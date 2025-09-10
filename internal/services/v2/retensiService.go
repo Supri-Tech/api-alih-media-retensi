@@ -13,6 +13,7 @@ import (
 
 type RetensiService interface {
 	GetAll(ctx context.Context, page, perPage int) (*RetensiPagination, error)
+	Search(ctx context.Context, filter RetensiFilter) ([]*models.RetensiJoin, error)
 	GetByID(ctx context.Context, id int) (*models.RetensiJoin, error)
 	Create(ctx context.Context, retensi models.Retensi) (*models.Retensi, error)
 	Update(ctx context.Context, retensi models.Retensi) (*models.Retensi, error)
@@ -41,6 +42,12 @@ type RetensiStatistik struct {
 	TotalDokumen int `json:"total_dokumen"`
 	TotalSudah   int `json:"total_sudah"`
 	TotalBelum   int `json:"total_belum"`
+}
+
+type RetensiFilter struct {
+	NoRM       string
+	NamaPasien string
+	Limit      int
 }
 
 func (svc *retensiService) GetAll(ctx context.Context, page, perPage int) (*RetensiPagination, error) {
@@ -80,6 +87,30 @@ func (svc *retensiService) GetAll(ctx context.Context, page, perPage int) (*Rete
 			TotalBelum:   belum,
 		},
 	}, nil
+}
+
+func (svc *retensiService) Search(ctx context.Context, filter RetensiFilter) ([]*models.RetensiJoin, error) {
+	filterMap := make(map[string]interface{})
+	if filter.NoRM != "" {
+		filterMap["NoRM"] = filter.NoRM
+	}
+	if filter.NamaPasien != "" {
+		filterMap["NamaPasien"] = filter.NamaPasien
+	}
+	if filter.Limit > 0 {
+		filterMap["Limit"] = filter.Limit
+	}
+
+	retensi, err := svc.repo.FindRetensi(ctx, filterMap)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(retensi) == 0 {
+		return nil, errors.New("No retensi found")
+	}
+
+	return retensi, nil
 }
 
 // func (svc *retensiService) GetAll(ctx context.Context, page, perPage int) (*RetensiPagination, error) {

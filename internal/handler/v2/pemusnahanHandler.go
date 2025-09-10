@@ -26,6 +26,7 @@ func (hdl *PemusnahanHandler) PemusnahanRoutes(router chi.Router) {
 		r.Use(middleware.VerifyToken)
 
 		r.Get("/pemusnahan", hdl.GetAll)
+		r.Get("/pemusnahan/search", hdl.Search)
 		r.Get("/pemusnahan/{id}", hdl.GetByID)
 		r.Post("/pemusnahan", hdl.Create)
 		r.Put("/pemusnahan/{id}", hdl.Update)
@@ -48,6 +49,33 @@ func (hdl *PemusnahanHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	pkg.Success(w, "Data fetched successfully", pemusnahan)
 }
 
+func (hdl *PemusnahanHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	limit, _ := strconv.Atoi(query.Get("limit"))
+
+	filter := services.PemusnahanFilter{
+		NoRM:       query.Get("NoRM"),
+		NamaPasien: query.Get("NamaPasien"),
+		Limit:      limit,
+	}
+
+	if filter.NoRM == "" && filter.NamaPasien == "" {
+		pkg.Error(w, http.StatusBadRequest, "At least one search parameter is required")
+		return
+	}
+
+	pemusnahan, err := hdl.service.Search(r.Context(), filter)
+	if err != nil {
+		if err.Error() == "No pemusnahan found" {
+			pkg.Error(w, http.StatusNotFound, err.Error())
+		} else {
+			pkg.Error(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	pkg.Success(w, "Data found", pemusnahan)
+}
+
 func (hdl *PemusnahanHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
@@ -68,7 +96,7 @@ func (hdl *PemusnahanHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (hdl *PemusnahanHandler) Create(w http.ResponseWriter, r *http.Request) {
 	type CreatePemusnahan struct {
-		ID             int        `json:"IdKunjugan"`
+		ID             int        `json:"IdKunjungan"`
 		TanggalLaporan *time.Time `json:"TglLaporan"`
 		Status         string     `json:"Status"`
 	}
@@ -103,8 +131,9 @@ func (hdl *PemusnahanHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type UpdatePemusnahan struct {
-		TanggalLaporan string `json:"TglLaporan"`
-		Status         string `json:"Status"`
+		ID             int        `json:"IdKunjungan"`
+		TanggalLaporan *time.Time `json:"TglLaporan"`
+		Status         string     `json:"Status"`
 	}
 
 	var req UpdatePemusnahan
@@ -113,19 +142,19 @@ func (hdl *PemusnahanHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tglLaporan *time.Time
-	if req.TanggalLaporan != "" {
-		parsedTime, err := time.Parse("2006-01-02", req.TanggalLaporan)
-		if err != nil {
-			pkg.Error(w, http.StatusBadRequest, "Invalid date format. Use YYYY-MM-DD")
-			return
-		}
-		tglLaporan = &parsedTime
-	}
+	// var tglLaporan *time.Time
+	// if req.TanggalLaporan != "" {
+	// 	parsedTime, err := time.Parse("2006-01-02", req.TanggalLaporan)
+	// 	if err != nil {
+	// 		pkg.Error(w, http.StatusBadRequest, "Invalid date format. Use YYYY-MM-DD")
+	// 		return
+	// 	}
+	// 	tglLaporan = &parsedTime
+	// }
 
 	pemusnahan := models.Pemusnahan{
 		ID:         id,
-		TglLaporan: tglLaporan,
+		TglLaporan: req.TanggalLaporan,
 		Status:     req.Status,
 	}
 

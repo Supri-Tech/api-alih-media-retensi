@@ -12,6 +12,7 @@ type PemusnahanRepository interface {
 	GetStatistikPemusnahan(ctx context.Context) (int, int, int, error)
 
 	GetAllPemusnahan(ctx context.Context, limit, offset int) ([]*models.PemusnahanJoin, error)
+	FindPemusnahan(ctx context.Context, filter map[string]interface{}) ([]*models.PemusnahanJoin, error)
 	GetPemusnahanByID(ctx context.Context, id int) (*models.PemusnahanJoin, error)
 	GetTotalPemusnahan(ctx context.Context) (int, error)
 	CreatePemusnahan(ctx context.Context, pemusnahan *models.Pemusnahan) (*models.Pemusnahan, error)
@@ -37,11 +38,11 @@ func (repo *pemusnahanRepository) GetStatistikPemusnahan(ctx context.Context) (i
 		return 0, 0, 0, err
 	}
 
-	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pemusnahan WHERE Status = 'sudah di musnahkan'`).Scan(&sudah); err != nil {
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pemusnahan WHERE Status = 'Sudah dimusnahkan'`).Scan(&sudah); err != nil {
 		return 0, 0, 0, err
 	}
 
-	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pemusnahan WHERE Status = 'belum di musnahkan'`).Scan(&belum); err != nil {
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pemusnahan WHERE Status = 'Belum dimusnahkan'`).Scan(&belum); err != nil {
 		return 0, 0, 0, err
 	}
 
@@ -127,6 +128,90 @@ func (repo *pemusnahanRepository) GetAllPemusnahan(ctx context.Context, limit, o
 	}
 
 	return pemusnahan, nil
+}
+
+func (repo *pemusnahanRepository) FindPemusnahan(ctx context.Context, filter map[string]interface{}) ([]*models.PemusnahanJoin, error) {
+	query := `
+	SELECT
+		pemusnahan.Id AS Id,
+		TglLaporan,
+		pemusnahan.Status AS Status,
+		JenisKunjungan,
+		pasien.NoRM AS NoRM,
+		NamaPasien,
+		JenisKelamin,
+		TglLahir,
+		Alamat,
+		pasien.Status AS StatusPasien,
+		JenisKasus,
+		MasaAktifRi,
+		MasaInaktifRi,
+		MasaAktifRj,
+		MasaInaktifRj,
+		InfoLain
+	FROM pemusnahan
+	INNER JOIN kunjungan ON kunjungan.Id = pemusnahan.Id
+	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	WHERE 1=1
+	`
+
+	var args []interface{}
+
+	if noRM, ok := filter["NoRM"]; ok {
+		query += " AND pasien.NoRM LIKE ?"
+		args = append(args, "%"+noRM.(string)+"%")
+	}
+	if name, ok := filter["NamaPasien"]; ok {
+		query += " AND pasien.NamaPasien LIKE ?"
+		args = append(args, "%"+name.(string)+"%")
+	}
+
+	if limit, ok := filter["Limit"]; ok {
+		query += " LIMIT ?"
+		args = append(args, limit)
+	} else {
+		query += " LIMIT 100"
+	}
+
+	rows, err := repo.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*models.PemusnahanJoin
+	for rows.Next() {
+		var p models.PemusnahanJoin
+		err := rows.Scan(
+			&p.ID,
+			&p.TglLaporan,
+			&p.Status,
+			&p.JenisKunjungan,
+			&p.NoRM,
+			&p.NamaPasien,
+			&p.JenisKelamin,
+			&p.TglLahir,
+			&p.Alamat,
+			&p.StatusPasien,
+			&p.JenisKasus,
+			&p.MasaAktifRi,
+			&p.MasaInaktifRi,
+			&p.MasaAktifRj,
+			&p.MasaInaktifRj,
+			&p.InfoLain,
+		)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, &p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (repo *pemusnahanRepository) GetTotalPemusnahan(ctx context.Context) (int, error) {
