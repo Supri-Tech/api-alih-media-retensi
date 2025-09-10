@@ -267,25 +267,32 @@ func (svc *kasusService) Export(ctx context.Context, filter KasusFilter) ([]byte
 		return nil, err
 	}
 
-	f := excelize.NewFile()
+	f, err := excelize.OpenFile("./templates/pasien-template.xlsx")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open template: %v", err)
+	}
 	defer f.Close()
 
 	sheetName := "Worksheet"
-	index, err := f.NewSheet(sheetName)
-	if err != nil {
-		return nil, err
-	}
-	f.SetActiveSheet(index)
+	startRow := 6
+	endRow := 1000
 
-	headers := []string{"Jenis Kasus", "Masa Aktif RI", "Masa Inaktif RI", "Masa Aktif RJ", "Masa Inaktif RJ", "Info Lain"}
-	for col, header := range headers {
-		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
-		f.SetCellValue(sheetName, cell, header)
-		f.SetCellStyle(sheetName, cell, cell, pkg.GetHeaderStyle(f))
+	for row := startRow; row <= endRow; row++ {
+		for col := 1; col <= 8; col++ {
+			cell, _ := excelize.CoordinatesToCellName(col, row)
+			f.SetCellValue(sheetName, cell, "")
+		}
 	}
+
+	// headers := []string{"Jenis Kasus", "Masa Aktif RI", "Masa Inaktif RI", "Masa Aktif RJ", "Masa Inaktif RJ", "Info Lain"}
+	// for col, header := range headers {
+	// 	cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+	// 	f.SetCellValue(sheetName, cell, header)
+	// 	f.SetCellStyle(sheetName, cell, cell, pkg.GetHeaderStyle(f))
+	// }
 
 	for row, kasus := range kasusList {
-		rowNum := row + 2
+		rowNum := row + startRow
 
 		f.SetCellValue(sheetName, pkg.GetCell(1, rowNum), kasus.JenisKasus)
 		f.SetCellValue(sheetName, pkg.GetCell(2, rowNum), kasus.MasaAktifRI)
@@ -294,11 +301,11 @@ func (svc *kasusService) Export(ctx context.Context, filter KasusFilter) ([]byte
 		f.SetCellValue(sheetName, pkg.GetCell(5, rowNum), kasus.MasaInaktifRJ)
 		f.SetCellValue(sheetName, pkg.GetCell(6, rowNum), kasus.InfoLain)
 
-		if row%2 == 0 {
-			pkg.SetRowStyle(f, sheetName, rowNum, 8, "E2EFDA")
-		} else {
-			pkg.SetRowStyle(f, sheetName, rowNum, 8, "FFFFFF")
-		}
+		// if row%2 == 0 {
+		// 	pkg.SetRowStyle(f, sheetName, rowNum, 8, "E2EFDA")
+		// } else {
+		// 	pkg.SetRowStyle(f, sheetName, rowNum, 8, "FFFFFF")
+		// }
 	}
 
 	for col := 1; col <= 8; col++ {

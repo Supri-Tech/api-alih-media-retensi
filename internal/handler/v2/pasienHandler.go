@@ -24,6 +24,7 @@ func NewPasienHandler(service services.PasienService) *PasienHandler {
 }
 
 func (hdl *PasienHandler) PasienRoutes(router chi.Router) {
+	router.Get("/pasien/export", hdl.Export)
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.VerifyToken)
 
@@ -34,7 +35,6 @@ func (hdl *PasienHandler) PasienRoutes(router chi.Router) {
 		r.Put("/pasien/{id}", hdl.Update)
 		r.Delete("/pasien/{id}", hdl.Delete)
 		r.Post("/pasien/import", hdl.Import)
-		r.Get("/pasien/export", hdl.Export)
 	})
 }
 

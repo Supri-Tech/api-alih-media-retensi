@@ -326,25 +326,39 @@ func (svc *pasienService) Export(ctx context.Context, filter PasienFilter) ([]by
 		return nil, err
 	}
 
-	f := excelize.NewFile()
+	// f := excelize.NewFile()
+	f, err := excelize.OpenFile("./templates/pasien-template.xlsx")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open template: %v", err)
+	}
 	defer f.Close()
 
 	sheetName := "Worksheet"
-	index, err := f.NewSheet(sheetName)
-	if err != nil {
-		return nil, err
-	}
-	f.SetActiveSheet(index)
+	startRow := 6
+	endRow := 1000
 
-	headers := []string{"No RM", "Nama Pasien", "Jenis Kelamin", "Tanggal Lahir", "NIK", "Alamat", "Status", "Tanggal Dibuat"}
-	for col, header := range headers {
-		cell, _ := excelize.CoordinatesToCellName(col+1, 1)
-		f.SetCellValue(sheetName, cell, header)
-		f.SetCellStyle(sheetName, cell, cell, pkg.GetHeaderStyle(f))
+	for row := startRow; row <= endRow; row++ {
+		for col := 1; col <= 8; col++ {
+			cell, _ := excelize.CoordinatesToCellName(col, row)
+			f.SetCellValue(sheetName, cell, "")
+		}
 	}
+
+	// index, err := f.NewSheet(sheetName)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// f.SetActiveSheet(index)
+
+	// headers := []string{"No RM", "Nama Pasien", "Jenis Kelamin", "Tanggal Lahir", "NIK", "Alamat", "Status", "Tanggal Dibuat"}
+	// for col, header := range headers {
+	// 	cell, _ := excelize.CoordinatesToCellName(col+1, 1)
+	// 	f.SetCellValue(sheetName, cell, header)
+	// 	f.SetCellStyle(sheetName, cell, cell, pkg.GetHeaderStyle(f))
+	// }
 
 	for row, pasien := range pasiens {
-		rowNum := row + 2
+		rowNum := row + startRow
 
 		f.SetCellValue(sheetName, pkg.GetCell(1, rowNum), pasien.NoRM)
 		f.SetCellValue(sheetName, pkg.GetCell(2, rowNum), pasien.NamaPasien)
@@ -355,16 +369,16 @@ func (svc *pasienService) Export(ctx context.Context, filter PasienFilter) ([]by
 		f.SetCellValue(sheetName, pkg.GetCell(7, rowNum), pasien.Status)
 		f.SetCellValue(sheetName, pkg.GetCell(8, rowNum), pasien.CreatedAt.Format("2006-01-02 15:04:05"))
 
-		if row%2 == 0 {
-			pkg.SetRowStyle(f, sheetName, rowNum, 8, "E2EFDA")
-		} else {
-			pkg.SetRowStyle(f, sheetName, rowNum, 8, "FFFFFF")
-		}
+		// if row%2 == 0 {
+		// 	pkg.SetRowStyle(f, sheetName, rowNum, 8, "E2EFDA")
+		// } else {
+		// 	pkg.SetRowStyle(f, sheetName, rowNum, 8, "FFFFFF")
+		// }
 	}
 
-	for col := 1; col <= 8; col++ {
-		f.SetColWidth(sheetName, pkg.GetColumnName(col), pkg.GetColumnName(col), 20)
-	}
+	// for col := 1; col <= 8; col++ {
+	// 	f.SetColWidth(sheetName, pkg.GetColumnName(col), pkg.GetColumnName(col), 20)
+	// }
 
 	var buf bytes.Buffer
 	if err := f.Write(&buf); err != nil {
