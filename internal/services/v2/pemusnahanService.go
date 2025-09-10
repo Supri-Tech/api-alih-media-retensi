@@ -13,6 +13,7 @@ import (
 
 type PemusnahanService interface {
 	GetAll(ctx context.Context, page, perPage int) (*PemusnahanPagination, error)
+	Search(ctx context.Context, filter PemusnahanFilter) ([]*models.PemusnahanJoin, error)
 	GetByID(ctx context.Context, id int) (*models.PemusnahanJoin, error)
 	Create(ctx context.Context, pemusnahan models.Pemusnahan) (*models.Pemusnahan, error)
 	Update(ctx context.Context, pemusnahan models.Pemusnahan) (*models.Pemusnahan, error)
@@ -41,6 +42,12 @@ type PemusnahanStatistik struct {
 	TotalDokumen int `json:"total_dokumen"`
 	TotalSudah   int `json:"total_sudah"`
 	TotalBelum   int `json:"total_belum"`
+}
+
+type PemusnahanFilter struct {
+	NoRM       string
+	NamaPasien string
+	Limit      int
 }
 
 func (svc *pemusnahanService) GetAll(ctx context.Context, page, perPage int) (*PemusnahanPagination, error) {
@@ -80,6 +87,30 @@ func (svc *pemusnahanService) GetAll(ctx context.Context, page, perPage int) (*P
 			TotalBelum:   belum,
 		},
 	}, nil
+}
+
+func (svc *pemusnahanService) Search(ctx context.Context, filter PemusnahanFilter) ([]*models.PemusnahanJoin, error) {
+	filterMap := make(map[string]interface{})
+	if filter.NoRM != "" {
+		filterMap["NoRM"] = filter.NoRM
+	}
+	if filter.NamaPasien != "" {
+		filterMap["NamaPasien"] = filter.NamaPasien
+	}
+	if filter.Limit > 0 {
+		filterMap["Limit"] = filter.Limit
+	}
+
+	pemusnahan, err := svc.repo.FindPemusnahan(ctx, filterMap)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pemusnahan) == 0 {
+		return nil, errors.New("No pemusnahan found")
+	}
+
+	return pemusnahan, nil
 }
 
 // func (svc *pemusnahanService) GetAll(ctx context.Context, page, perPage int) (*PemusnahanPagination, error) {

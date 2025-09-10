@@ -27,6 +27,7 @@ func (hdl *RetensiHandler) RetensiRoutes(router chi.Router) {
 
 		r.Get("/retensi", hdl.GetAll)
 		r.Get("/retensi/{id}", hdl.GetByID)
+		r.Get("/retensi/search", hdl.Search)
 		r.Post("/retensi", hdl.Create)
 		r.Put("/retensi/{id}", hdl.Update)
 		r.Delete("/retensi/{id}", hdl.Delete)
@@ -45,6 +46,33 @@ func (hdl *RetensiHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data fetched successfully", retensi)
+}
+
+func (hdl *RetensiHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	limit, _ := strconv.Atoi(query.Get("limit"))
+
+	filter := services.RetensiFilter{
+		NoRM:       query.Get("NoRM"),
+		NamaPasien: query.Get("NamaPasien"),
+		Limit:      limit,
+	}
+
+	if filter.NoRM == "" && filter.NamaPasien == "" {
+		pkg.Error(w, http.StatusBadRequest, "At least one search parameter is required")
+		return
+	}
+
+	retensi, err := hdl.service.Search(r.Context(), filter)
+	if err != nil {
+		if err.Error() == "No retensi found" {
+			pkg.Error(w, http.StatusNotFound, err.Error())
+		} else {
+			pkg.Error(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	pkg.Success(w, "Data found", retensi)
 }
 
 func (hdl *RetensiHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +95,7 @@ func (hdl *RetensiHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (hdl *RetensiHandler) Create(w http.ResponseWriter, r *http.Request) {
 	type CreateRetensi struct {
-		ID             int        `json:"IdKunjugan"`
+		ID             int        `json:"IdKunjungan"`
 		TanggalLaporan *time.Time `json:"TglLaporan"`
 		Status         string     `json:"Status"`
 	}

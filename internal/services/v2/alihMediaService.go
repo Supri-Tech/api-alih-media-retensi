@@ -17,6 +17,7 @@ import (
 
 type AlihMediaService interface {
 	GetAll(ctx context.Context, page, perPage int) (*AlihMediaPagination, error)
+	Search(ctx context.Context, filter AlihMediaFilter) ([]*models.AlihMediaJoin, error)
 	GetByID(ctx context.Context, id int) (*models.AlihMediaJoin, error)
 	Create(ctx context.Context, alihMedia models.AlihMedia) (*models.AlihMedia, error)
 	Update(ctx context.Context, alihMedia models.AlihMedia) (*models.AlihMedia, error)
@@ -59,6 +60,12 @@ type AlihMediaStatistik struct {
 	TotalBelum   int `json:"total_belum"`
 }
 
+type AlihMediaFilter struct {
+	NoRM       string
+	NamaPasien string
+	Limit      int
+}
+
 func (svc *alihMediaService) GetAll(ctx context.Context, page, perPage int) (*AlihMediaPagination, error) {
 	if page < 1 {
 		page = 1
@@ -96,6 +103,30 @@ func (svc *alihMediaService) GetAll(ctx context.Context, page, perPage int) (*Al
 			TotalBelum:   belum,
 		},
 	}, nil
+}
+
+func (svc *alihMediaService) Search(ctx context.Context, filter AlihMediaFilter) ([]*models.AlihMediaJoin, error) {
+	filterMap := make(map[string]interface{})
+	if filter.NoRM != "" {
+		filterMap["NoRM"] = filter.NoRM
+	}
+	if filter.NamaPasien != "" {
+		filterMap["NamaPasien"] = filter.NamaPasien
+	}
+	if filter.Limit > 0 {
+		filterMap["Limit"] = filter.Limit
+	}
+
+	alihMedia, err := svc.repo.FindAlihMedia(ctx, filterMap)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(alihMedia) == 0 {
+		return nil, errors.New("No alih media found")
+	}
+
+	return alihMedia, nil
 }
 
 // func (svc *alihMediaService) GetAll(ctx context.Context, page, perPage int) (*AlihMediaPagination, error) {

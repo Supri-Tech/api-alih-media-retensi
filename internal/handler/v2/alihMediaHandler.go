@@ -26,6 +26,7 @@ func (hdl *AlihMediaHandler) AlihMediaRoutes(router chi.Router) {
 		r.Use(middleware.VerifyToken)
 
 		r.Get("/alih-media", hdl.GetAll)
+		r.Get("/alih-media/search", hdl.Search)
 		r.Get("/alih-media/{id}", hdl.GetByID)
 		r.Post("/alih-media", hdl.Create)
 		r.Put("/alih-media/{id}", hdl.Update)
@@ -45,6 +46,33 @@ func (hdl *AlihMediaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data fetched successfully", alihMedia)
+}
+
+func (hdl *AlihMediaHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	limit, _ := strconv.Atoi(query.Get("limit"))
+
+	filter := services.AlihMediaFilter{
+		NoRM:       query.Get("NoRM"),
+		NamaPasien: query.Get("NamaPasien"),
+		Limit:      limit,
+	}
+
+	if filter.NoRM == "" && filter.NamaPasien == "" {
+		pkg.Error(w, http.StatusBadRequest, "At least one search parameter is required")
+		return
+	}
+
+	alihMedia, err := hdl.service.Search(r.Context(), filter)
+	if err != nil {
+		if err.Error() == "No alih media found" {
+			pkg.Error(w, http.StatusNotFound, err.Error())
+		} else {
+			pkg.Error(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	pkg.Success(w, "Data found", alihMedia)
 }
 
 func (hdl *AlihMediaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +95,7 @@ func (hdl *AlihMediaHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (hdl *AlihMediaHandler) Create(w http.ResponseWriter, r *http.Request) {
 	type CreateAlihMedia struct {
-		ID             int        `json:"IdKunjugan"`
+		ID             int        `json:"IdKunjungan"`
 		TanggalLaporan *time.Time `json:"TglLaporan"`
 		Status         string     `json:"Status"`
 	}
@@ -102,7 +130,7 @@ func (hdl *AlihMediaHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type UpdateAlihMedia struct {
-		ID             int        `json:"IdKunjugan"`
+		ID             int        `json:"IdKunjungan"`
 		TanggalLaporan *time.Time `json:"TglLaporan"`
 		Status         string     `json:"Status"`
 	}

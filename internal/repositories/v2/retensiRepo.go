@@ -11,6 +11,7 @@ import (
 type RetensiRepository interface {
 	GetStatistikRetensi(ctx context.Context) (int, int, int, error)
 	GetAllRetensi(ctx context.Context, limit, offset int) ([]*models.RetensiJoin, error)
+	FindRetensi(ctx context.Context, filter map[string]interface{}) ([]*models.RetensiJoin, error)
 	GetRetensiByID(ctx context.Context, id int) (*models.RetensiJoin, error)
 	GetTotalRetensi(ctx context.Context) (int, error)
 	CreateRetensi(ctx context.Context, retensi *models.Retensi) (*models.Retensi, error)
@@ -36,11 +37,11 @@ func (repo *retensiRepository) GetStatistikRetensi(ctx context.Context) (int, in
 		return 0, 0, 0, err
 	}
 
-	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM retensi WHERE Status = 'sudah di retensi'`).Scan(&sudah); err != nil {
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM retensi WHERE Status = 'Sudah diretensi'`).Scan(&sudah); err != nil {
 		return 0, 0, 0, err
 	}
 
-	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM retensi WHERE Status = 'belum di retensi'`).Scan(&belum); err != nil {
+	if err := repo.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM retensi WHERE Status = 'Belum diretensi'`).Scan(&belum); err != nil {
 		return 0, 0, 0, err
 	}
 
@@ -133,6 +134,90 @@ func (repo *retensiRepository) GetAllRetensi(ctx context.Context, limit, offset 
 	}
 
 	return retensi, nil
+}
+
+func (repo *retensiRepository) FindRetensi(ctx context.Context, filter map[string]interface{}) ([]*models.RetensiJoin, error) {
+	query := `
+	SELECT
+		retensi.Id AS Id,
+		TglLaporan,
+		retensi.Status AS Status,
+		JenisKunjungan,
+		pasien.NoRM AS NoRM,
+		NamaPasien,
+		JenisKelamin,
+		TglLahir,
+		Alamat,
+		pasien.Status AS StatusPasien,
+		JenisKasus,
+		MasaAktifRi,
+		MasaInaktifRi,
+		MasaAktifRj,
+		MasaInaktifRj,
+		InfoLain
+	FROM retensi
+	INNER JOIN kunjungan ON kunjungan.Id = retensi.Id
+	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	WHERE 1=1
+	`
+
+	var args []interface{}
+
+	if noRM, ok := filter["NoRM"]; ok {
+		query += " AND pasien.NoRM LIKE ?"
+		args = append(args, "%"+noRM.(string)+"%")
+	}
+	if name, ok := filter["NamaPasien"]; ok {
+		query += " AND pasien.NamaPasien LIKE ?"
+		args = append(args, "%"+name.(string)+"%")
+	}
+
+	if limit, ok := filter["Limit"]; ok {
+		query += " LIMIT ?"
+		args = append(args, limit)
+	} else {
+		query += " LIMIT 100"
+	}
+
+	rows, err := repo.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*models.RetensiJoin
+	for rows.Next() {
+		var r models.RetensiJoin
+		err := rows.Scan(
+			&r.ID,
+			&r.TglLaporan,
+			&r.Status,
+			&r.JenisKunjungan,
+			&r.NoRM,
+			&r.NamaPasien,
+			&r.JenisKelamin,
+			&r.TglLahir,
+			&r.Alamat,
+			&r.StatusPasien,
+			&r.JenisKasus,
+			&r.MasaAktifRi,
+			&r.MasaInaktifRi,
+			&r.MasaAktifRj,
+			&r.MasaInaktifRj,
+			&r.InfoLain,
+		)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, &r)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (repo *retensiRepository) GetTotalRetensi(ctx context.Context) (int, error) {
