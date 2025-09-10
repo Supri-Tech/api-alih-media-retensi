@@ -267,7 +267,7 @@ func (svc *kasusService) Export(ctx context.Context, filter KasusFilter) ([]byte
 		return nil, err
 	}
 
-	f, err := excelize.OpenFile("./templates/pasien-template.xlsx")
+	f, err := excelize.OpenFile("./templates/kasus-template.xlsx")
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open template: %v", err)
 	}
