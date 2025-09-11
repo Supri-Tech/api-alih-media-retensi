@@ -14,6 +14,7 @@ import (
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
+	"github.com/xuri/excelize/v2"
 )
 
 type KunjunganHandler struct {
@@ -36,6 +37,7 @@ func (hdl *KunjunganHandler) KunjunganRoutes(router chi.Router) {
 		r.Post("/kunjungan/import", hdl.Import)
 		r.Put("/kunjungan/{id}", hdl.Update)
 		r.Delete("/kunjungan/{id}", hdl.Delete)
+		r.Get("/kunjungan/export", hdl.ExportLatest)
 	})
 }
 
@@ -262,4 +264,64 @@ func (hdl *KunjunganHandler) Import(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Excel file imported successfully", nil)
+}
+
+func (h *KunjunganHandler) ExportLatest(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit == 0 {
+		limit = 1000
+	}
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+	data, err := h.service.ExportLatestKunjungan(ctx, limit, offset)
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to get data: "+err.Error())
+		return
+	}
+
+	f := excelize.NewFile()
+	sheet := f.GetSheetName(0)
+
+	headers := []string{"ID", "No RM", "Nama Pasien", "JK", "Tgl Lahir", "Alamat", "Tgl Masuk", "Jenis Kasus", "Jenis Kunjungan", "Status Terakhir"}
+	for i, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheet, cell, h)
+	}
+
+	for row, d := range data {
+		values := []interface{}{
+			d.ID,
+			d.NoRM,
+			d.NamaPasien,
+			d.JenisKelamin,
+			d.TglLahir.Format("2006-01-02"),
+			d.Alamat,
+			d.TglMasuk.Format("2006-01-02"),
+			d.JenisKasus,
+			d.JenisKunjungan,
+			d.StatusTerakhir,
+		}
+		for col, v := range values {
+			cell, _ := excelize.CoordinatesToCellName(col+1, row+2)
+			f.SetCellValue(sheet, cell, v)
+		}
+	}
+
+	excelData, err := f.WriteToBuffer()
+	if err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to generate Excel: "+err.Error())
+		return
+	}
+
+	filename := "data_kunjungan_" + time.Now().Format("20060102_150405") + ".xlsx"
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
+	w.Header().Set("Content-Length", strconv.Itoa(len(excelData.Bytes())))
+
+	if _, err := w.Write(excelData.Bytes()); err != nil {
+		pkg.Error(w, http.StatusInternalServerError, "Failed to write Excel file")
+		return
+	}
 }

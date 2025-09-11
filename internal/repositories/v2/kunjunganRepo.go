@@ -21,6 +21,7 @@ type KunjunganRepository interface {
 	UpdateKunjunganStatus(ctx context.Context, id int, status string) error
 	GetActiveKunjungan(ctx context.Context) ([]*models.Kunjungan, error)
 	GetTotalActiveKunjungan(ctx context.Context) (int, error)
+	GetLatestKunjungan(ctx context.Context, limit, offset int) ([]*models.LatestDataJoin, error)
 }
 
 type kunjunganRepository struct {
@@ -375,4 +376,61 @@ func (repo *kunjunganRepository) GetKunjunganBasicByID(ctx context.Context, id i
 		return nil, err
 	}
 	return &k, nil
+}
+
+func (repo *kunjunganRepository) GetLatestKunjungan(ctx context.Context, limit, offset int) ([]*models.LatestDataJoin, error) {
+	query := `
+        SELECT 
+            k.Id,
+            p.NoRM,
+            p.NamaPasien,
+            p.JenisKelamin,
+            p.TglLahir,
+            p.Alamat,
+            k.TglMasuk,
+            ks.JenisKasus,
+            k.JenisKunjungan,
+            CASE
+                WHEN pm.Id IS NOT NULL THEN 'Pemusnahan'
+                WHEN r.Id IS NOT NULL THEN 'Retensi'
+                WHEN a.Id IS NOT NULL THEN 'Alih Media'
+                ELSE 'Kunjungan'
+            END AS StatusTerakhir
+        FROM kunjungan k
+        INNER JOIN pasien p ON p.Id = k.IdPasien
+        INNER JOIN kasus ks ON ks.Id = k.IdKasus
+        LEFT JOIN alih_media a ON a.Id = k.Id
+        LEFT JOIN retensi r ON r.Id = k.Id
+        LEFT JOIN pemusnahan pm ON pm.Id = k.Id
+        ORDER BY k.TglMasuk DESC
+        LIMIT ? OFFSET ?;
+    `
+
+	rows, err := repo.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*models.LatestDataJoin
+	for rows.Next() {
+		var d models.LatestDataJoin
+		if err := rows.Scan(
+			&d.ID,
+			&d.NoRM,
+			&d.NamaPasien,
+			&d.JenisKelamin,
+			&d.TglLahir,
+			&d.Alamat,
+			&d.TglMasuk,
+			&d.JenisKasus,
+			&d.JenisKunjungan,
+			&d.StatusTerakhir,
+		); err != nil {
+			return nil, err
+		}
+		results = append(results, &d)
+	}
+
+	return results, rows.Err()
 }

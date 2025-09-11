@@ -19,6 +19,7 @@ type KunjunganService interface {
 	Update(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
 	Delete(ctx context.Context, id int) error
 	Import(ctx context.Context, filePath string) error
+	ExportLatestKunjungan(ctx context.Context, limit, offset int) ([]*models.LatestDataJoin, error)
 }
 
 type kunjunganService struct {
@@ -187,4 +188,8 @@ func (svc *kunjunganService) Import(ctx context.Context, filePath string) error 
 	}
 
 	return nil
+}
+
+func (s *kunjunganService) ExportLatestKunjungan(ctx context.Context, limit, offset int) ([]*models.LatestDataJoin, error) {
+	return s.repo.GetLatestKunjungan(ctx, limit, offset)
 }

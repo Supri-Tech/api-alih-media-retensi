@@ -32,3 +32,16 @@ type KunjunganJoin struct {
 	JenisKunjungan string // kunjungan
 	Dokumen        string // dokumen
 }
+
+type LatestDataJoin struct {
+	ID             int
+	NoRM           string
+	NamaPasien     string
+	JenisKelamin   string
+	TglLahir       time.Time
+	Alamat         string
+	TglMasuk       time.Time
+	JenisKasus     string
+	JenisKunjungan string
+	StatusTerakhir string
+}
