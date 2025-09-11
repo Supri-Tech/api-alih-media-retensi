@@ -30,6 +30,22 @@ type AlihMediaJoin struct {
 	InfoLain       string
 }
 
+type AlihMediaExport struct {
+	ID             int
+	NoRM           string
+	NamaPasien     string
+	NIK            string
+	JenisKelamin   string
+	TglLahir       time.Time
+	Alamat         string
+	StatusPasien   string
+	TglMasuk       time.Time
+	JenisKasus     string
+	JenisKunjungan string
+	TglLaporan     *time.Time
+	Status         string
+}
+
 type AlihMediaStats struct {
 	Total   int
 	Aktif   int

@@ -20,7 +20,7 @@ type AlihMediaRepository interface {
 	CreateAlihMedia(ctx context.Context, alihMedia *models.AlihMedia) (*models.AlihMedia, error)
 	UpdateAlihMedia(ctx context.Context, alihMedia models.AlihMedia) (*models.AlihMedia, error)
 	DeleteAlihMedia(ctx context.Context, id int) error
-	GetAllAlihMediaForExport(ctx context.Context) ([]*models.AlihMediaJoin, error)
+	GetAllAlihMediaForExport(ctx context.Context) ([]*models.AlihMediaExport, error)
 }
 
 type alihMediaRepository struct {
@@ -395,30 +395,27 @@ func (repo *alihMediaRepository) DeleteAlihMedia(ctx context.Context, id int) er
 	return nil
 }
 
-func (repo *alihMediaRepository) GetAllAlihMediaForExport(ctx context.Context) ([]*models.AlihMediaJoin, error) {
+func (repo *alihMediaRepository) GetAllAlihMediaForExport(ctx context.Context) ([]*models.AlihMediaExport, error) {
 	query := `
-		SELECT
-			alih_media.Id AS Id,
-			alih_media.TglLaporan,
-			alih_media.Status,
-			kunjungan.JenisKunjungan,
-			pasien.NoRM,
-			pasien.NamaPasien,
-			pasien.JenisKelamin,
-			pasien.TglLahir,
-			pasien.Alamat,
-			pasien.Status AS StatusPasien,
-			kasus.JenisKasus,
-			kasus.MasaAktifRi,
-			kasus.MasaInaktifRi,
-			kasus.MasaAktifRj,
-			kasus.MasaInaktifRj,
-			kasus.InfoLain
-		FROM alih_media
-		INNER JOIN kunjungan ON kunjungan.Id = alih_media.Id
-		INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
-		INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
-		ORDER BY alih_media.TglLaporan DESC
+	SELECT
+		am.Id,
+		p.NoRM,
+		p.NamaPasien,
+		p.NIK,
+		p.JenisKelamin,
+		p.TglLahir,
+		p.Alamat,
+		p.Status AS StatusPasien,
+		k.TglMasuk,
+		ks.JenisKasus,
+		k.JenisKunjungan,
+		am.TglLaporan,
+		am.Status
+	FROM alih_media am
+	INNER JOIN kunjungan k ON k.Id = am.Id
+	INNER JOIN pasien p ON p.Id = k.IdPasien
+	INNER JOIN kasus ks ON ks.Id = k.IdKasus
+	ORDER BY am.TglLaporan DESC;
 	`
 
 	rows, err := repo.db.QueryContext(ctx, query)
@@ -427,37 +424,26 @@ func (repo *alihMediaRepository) GetAllAlihMediaForExport(ctx context.Context) (
 	}
 	defer rows.Close()
 
-	var result []*models.AlihMediaJoin
+	var result []*models.AlihMediaExport
 	for rows.Next() {
-		var am models.AlihMediaJoin
-		var tglLaporan sql.NullTime
-
+		var am models.AlihMediaExport
 		err := rows.Scan(
 			&am.ID,
-			&tglLaporan,
-			&am.Status,
-			&am.JenisKunjungan,
 			&am.NoRM,
 			&am.NamaPasien,
+			&am.NIK,
 			&am.JenisKelamin,
 			&am.TglLahir,
 			&am.Alamat,
 			&am.StatusPasien,
+			&am.TglMasuk,
 			&am.JenisKasus,
-			&am.MasaAktifRi,
-			&am.MasaInaktifRi,
-			&am.MasaAktifRj,
-			&am.MasaInaktifRj,
-			&am.InfoLain,
+			&am.JenisKunjungan,
+			&am.TglLaporan,
+			&am.Status,
 		)
 		if err != nil {
 			return nil, err
-		}
-
-		if tglLaporan.Valid {
-			am.TglLaporan = &tglLaporan.Time
-		} else {
-			am.TglLaporan = nil
 		}
 
 		result = append(result, &am)

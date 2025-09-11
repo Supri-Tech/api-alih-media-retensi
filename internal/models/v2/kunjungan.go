@@ -37,11 +37,13 @@ type LatestDataJoin struct {
 	ID             int
 	NoRM           string
 	NamaPasien     string
+	NIK            string
 	JenisKelamin   string
 	TglLahir       time.Time
 	Alamat         string
 	TglMasuk       time.Time
 	JenisKasus     string
 	JenisKunjungan string
-	StatusTerakhir string
+	ArsipTerakhir  string //alih media, retensi, dll
+	StatusTerakhir string //sudah dialih media, belum diretensi, dll
 }

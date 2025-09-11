@@ -14,7 +14,6 @@ import (
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/services/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/go-chi/chi/v5"
-	"github.com/xuri/excelize/v2"
 )
 
 type KunjunganHandler struct {
@@ -275,41 +274,8 @@ func (h *KunjunganHandler) ExportLatest(w http.ResponseWriter, r *http.Request) 
 	}
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
 
-	data, err := h.service.ExportLatestKunjungan(ctx, limit, offset)
-	if err != nil {
-		pkg.Error(w, http.StatusInternalServerError, "Failed to get data: "+err.Error())
-		return
-	}
-
-	f := excelize.NewFile()
-	sheet := f.GetSheetName(0)
-
-	headers := []string{"ID", "No RM", "Nama Pasien", "JK", "Tgl Lahir", "Alamat", "Tgl Masuk", "Jenis Kasus", "Jenis Kunjungan", "Status Terakhir"}
-	for i, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		f.SetCellValue(sheet, cell, h)
-	}
-
-	for row, d := range data {
-		values := []interface{}{
-			d.ID,
-			d.NoRM,
-			d.NamaPasien,
-			d.JenisKelamin,
-			d.TglLahir.Format("2006-01-02"),
-			d.Alamat,
-			d.TglMasuk.Format("2006-01-02"),
-			d.JenisKasus,
-			d.JenisKunjungan,
-			d.StatusTerakhir,
-		}
-		for col, v := range values {
-			cell, _ := excelize.CoordinatesToCellName(col+1, row+2)
-			f.SetCellValue(sheet, cell, v)
-		}
-	}
-
-	excelData, err := f.WriteToBuffer()
+	// panggil service, sudah return []byte dari template
+	excelData, err := h.service.ExportLatestKunjungan(ctx, limit, offset)
 	if err != nil {
 		pkg.Error(w, http.StatusInternalServerError, "Failed to generate Excel: "+err.Error())
 		return
@@ -318,9 +284,9 @@ func (h *KunjunganHandler) ExportLatest(w http.ResponseWriter, r *http.Request) 
 	filename := "data_kunjungan_" + time.Now().Format("20060102_150405") + ".xlsx"
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
-	w.Header().Set("Content-Length", strconv.Itoa(len(excelData.Bytes())))
+	w.Header().Set("Content-Length", strconv.Itoa(len(excelData)))
 
-	if _, err := w.Write(excelData.Bytes()); err != nil {
+	if _, err := w.Write(excelData); err != nil {
 		pkg.Error(w, http.StatusInternalServerError, "Failed to write Excel file")
 		return
 	}

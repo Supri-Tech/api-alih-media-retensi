@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -19,7 +20,7 @@ type KunjunganService interface {
 	Update(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
 	Delete(ctx context.Context, id int) error
 	Import(ctx context.Context, filePath string) error
-	ExportLatestKunjungan(ctx context.Context, limit, offset int) ([]*models.LatestDataJoin, error)
+	ExportLatestKunjungan(ctx context.Context, limit, offset int) ([]byte, error)
 }
 
 type kunjunganService struct {
@@ -190,6 +191,51 @@ func (svc *kunjunganService) Import(ctx context.Context, filePath string) error 
 	return nil
 }
 
-func (s *kunjunganService) ExportLatestKunjungan(ctx context.Context, limit, offset int) ([]*models.LatestDataJoin, error) {
-	return s.repo.GetLatestKunjungan(ctx, limit, offset)
+func (svc *kunjunganService) ExportLatestKunjungan(ctx context.Context, limit, offset int) ([]byte, error) {
+
+	kunjungans, err := svc.repo.GetLatestKunjungan(ctx, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := excelize.OpenFile("./templates/kunjungan-template.xlsx")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open template: %v", err)
+	}
+	defer f.Close()
+
+	sheetName := "Worksheet"
+	startRow := 6
+	endRow := 1000
+
+	for row := startRow; row <= endRow; row++ {
+		for col := 1; col <= 10; col++ {
+			cell, _ := excelize.CoordinatesToCellName(col, row)
+			f.SetCellValue(sheetName, cell, "")
+		}
+	}
+
+	for row, k := range kunjungans {
+		rowNum := row + startRow
+
+		f.SetCellValue(sheetName, pkg.GetCell(1, rowNum), k.ID)
+		f.SetCellValue(sheetName, pkg.GetCell(2, rowNum), k.NoRM)
+		f.SetCellValue(sheetName, pkg.GetCell(3, rowNum), k.NamaPasien)
+		f.SetCellValue(sheetName, pkg.GetCell(4, rowNum), k.NIK)
+		f.SetCellValue(sheetName, pkg.GetCell(5, rowNum), k.JenisKelamin)
+		f.SetCellValue(sheetName, pkg.GetCell(6, rowNum), k.TglLahir.Format("2006-01-02"))
+		f.SetCellValue(sheetName, pkg.GetCell(7, rowNum), k.Alamat)
+		f.SetCellValue(sheetName, pkg.GetCell(8, rowNum), k.TglMasuk.Format("2006-01-02"))
+		f.SetCellValue(sheetName, pkg.GetCell(9, rowNum), k.JenisKasus)
+		f.SetCellValue(sheetName, pkg.GetCell(10, rowNum), k.JenisKunjungan)
+		f.SetCellValue(sheetName, pkg.GetCell(11, rowNum), k.ArsipTerakhir)
+		f.SetCellValue(sheetName, pkg.GetCell(12, rowNum), k.StatusTerakhir)
+	}
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

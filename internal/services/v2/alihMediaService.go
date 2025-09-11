@@ -1,17 +1,18 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -128,40 +129,6 @@ func (svc *alihMediaService) Search(ctx context.Context, filter AlihMediaFilter)
 
 	return alihMedia, nil
 }
-
-// func (svc *alihMediaService) GetAll(ctx context.Context, page, perPage int) (*AlihMediaPagination, error) {
-// 	if page < 1 {
-// 		page = 1
-// 	}
-// 	if perPage < 1 || perPage > 100 {
-// 		perPage = 10
-// 	}
-
-// 	offset := (page - 1) * perPage
-
-// 	alihMedia, err := svc.repo.GetAllAlihMedia(ctx, perPage, offset)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	total, err := svc.repo.GetTotalAlihMedia(ctx)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	totalPages := total / perPage
-// 	if total%perPage > 0 {
-// 		totalPages++
-// 	}
-
-// 	return &AlihMediaPagination{
-// 		Data:       alihMedia,
-// 		Total:      total,
-// 		Page:       page,
-// 		PerPage:    perPage,
-// 		TotalPages: totalPages,
-// 	}, nil
-// }
 
 func (svc *alihMediaService) GetByID(ctx context.Context, id int) (*models.AlihMediaJoin, error) {
 	if id <= 0 {
@@ -379,49 +346,63 @@ func (svc *alihMediaService) Export(ctx context.Context) ([]byte, error) {
 		log.Println("[Export] Tidak ada data alih_media")
 	}
 
-	f := excelize.NewFile()
-	sheet := "Sheet1"
-	f.SetSheetName(f.GetSheetName(0), sheet)
-
-	headers := []string{
-		"ID", "Tanggal Laporan", "Status", "Jenis Kunjungan",
-		"NoRM", "Nama Pasien", "Jenis Kelamin", "Tanggal Lahir",
-		"Alamat", "Status Pasien", "Jenis Kasus",
-		"Masa Aktif RI", "Masa Inaktif RI",
-		"Masa Aktif RJ", "Masa Inaktif RJ", "Info Lain",
+	f, err := excelize.OpenFile("./templates/transaksi-template.xlsx")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open template: %v", err)
 	}
-	for i, h := range headers {
-		col := string(rune('A' + i))
-		f.SetCellValue(sheet, col+"1", h)
+	defer f.Close()
+
+	sheetName := "Worksheet"
+	startRow := 6
+	endRow := 1000
+
+	for row := startRow; row <= endRow; row++ {
+		for col := 1; col <= 13; col++ {
+			cell, _ := excelize.CoordinatesToCellName(col, row)
+			f.SetCellValue(sheetName, cell, "")
+		}
 	}
 
 	for i, row := range data {
-		r := i + 2
-		f.SetCellValue(sheet, "A"+strconv.Itoa(r), row.ID)
-		if row.TglLaporan != nil {
-			f.SetCellValue(sheet, "B"+strconv.Itoa(r), row.TglLaporan.Format("2006-01-02"))
+		rowNum := i + startRow
+
+		f.SetCellValue(sheetName, pkg.GetCell(1, rowNum), row.ID)
+		f.SetCellValue(sheetName, pkg.GetCell(2, rowNum), row.NoRM)
+		f.SetCellValue(sheetName, pkg.GetCell(3, rowNum), row.NamaPasien)
+		f.SetCellValue(sheetName, pkg.GetCell(4, rowNum), row.NIK)
+		f.SetCellValue(sheetName, pkg.GetCell(5, rowNum), row.JenisKelamin)
+
+		if !row.TglLahir.IsZero() {
+			f.SetCellValue(sheetName, pkg.GetCell(6, rowNum), row.TglLahir.Format("2006-01-02"))
 		} else {
-			f.SetCellValue(sheet, "B"+strconv.Itoa(r), "-")
+			f.SetCellValue(sheetName, pkg.GetCell(6, rowNum), "-")
 		}
-		f.SetCellValue(sheet, "C"+strconv.Itoa(r), row.Status)
-		f.SetCellValue(sheet, "D"+strconv.Itoa(r), row.JenisKunjungan)
-		f.SetCellValue(sheet, "E"+strconv.Itoa(r), row.NoRM)
-		f.SetCellValue(sheet, "F"+strconv.Itoa(r), row.NamaPasien)
-		f.SetCellValue(sheet, "G"+strconv.Itoa(r), row.JenisKelamin)
-		f.SetCellValue(sheet, "H"+strconv.Itoa(r), row.TglLahir.Format("2006-01-02"))
-		f.SetCellValue(sheet, "I"+strconv.Itoa(r), row.Alamat)
-		f.SetCellValue(sheet, "J"+strconv.Itoa(r), row.StatusPasien)
-		f.SetCellValue(sheet, "K"+strconv.Itoa(r), row.JenisKasus)
-		f.SetCellValue(sheet, "L"+strconv.Itoa(r), row.MasaAktifRi)
-		f.SetCellValue(sheet, "M"+strconv.Itoa(r), row.MasaInaktifRi)
-		f.SetCellValue(sheet, "N"+strconv.Itoa(r), row.MasaAktifRj)
-		f.SetCellValue(sheet, "O"+strconv.Itoa(r), row.MasaInaktifRj)
-		f.SetCellValue(sheet, "P"+strconv.Itoa(r), row.InfoLain)
+
+		f.SetCellValue(sheetName, pkg.GetCell(7, rowNum), row.Alamat)
+		f.SetCellValue(sheetName, pkg.GetCell(8, rowNum), row.StatusPasien)
+
+		if !row.TglMasuk.IsZero() {
+			f.SetCellValue(sheetName, pkg.GetCell(9, rowNum), row.TglMasuk.Format("2006-01-02"))
+		} else {
+			f.SetCellValue(sheetName, pkg.GetCell(9, rowNum), "-")
+		}
+
+		f.SetCellValue(sheetName, pkg.GetCell(10, rowNum), row.JenisKasus)
+		f.SetCellValue(sheetName, pkg.GetCell(11, rowNum), row.JenisKunjungan)
+
+		if row.TglLaporan != nil && !row.TglLaporan.IsZero() {
+			f.SetCellValue(sheetName, pkg.GetCell(12, rowNum), row.TglLaporan.Format("2006-01-02"))
+		} else {
+			f.SetCellValue(sheetName, pkg.GetCell(12, rowNum), "-")
+		}
+
+		f.SetCellValue(sheetName, pkg.GetCell(13, rowNum), row.Status)
 	}
 
-	buf, err := f.WriteToBuffer()
-	if err != nil {
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
 		return nil, err
 	}
+
 	return buf.Bytes(), nil
 }

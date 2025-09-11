@@ -384,17 +384,24 @@ func (repo *kunjunganRepository) GetLatestKunjungan(ctx context.Context, limit, 
             k.Id,
             p.NoRM,
             p.NamaPasien,
+            p.NIK,
             p.JenisKelamin,
             p.TglLahir,
             p.Alamat,
             k.TglMasuk,
             ks.JenisKasus,
             k.JenisKunjungan,
-            CASE
+            CASE 
                 WHEN pm.Id IS NOT NULL THEN 'Pemusnahan'
                 WHEN r.Id IS NOT NULL THEN 'Retensi'
                 WHEN a.Id IS NOT NULL THEN 'Alih Media'
                 ELSE 'Kunjungan'
+            END AS ArsipTerakhir,
+						CASE
+								WHEN a.Status IS NOT NULL THEN a.Status
+								WHEN r.Status IS NOT NULL THEN r.Status
+								WHEN pm.Status IS NOT NULL THEN pm.Status
+								ELSE '-'
             END AS StatusTerakhir
         FROM kunjungan k
         INNER JOIN pasien p ON p.Id = k.IdPasien
@@ -419,12 +426,14 @@ func (repo *kunjunganRepository) GetLatestKunjungan(ctx context.Context, limit, 
 			&d.ID,
 			&d.NoRM,
 			&d.NamaPasien,
+			&d.NIK,
 			&d.JenisKelamin,
 			&d.TglLahir,
 			&d.Alamat,
 			&d.TglMasuk,
 			&d.JenisKasus,
 			&d.JenisKunjungan,
+			&d.ArsipTerakhir,
 			&d.StatusTerakhir,
 		); err != nil {
 			return nil, err
