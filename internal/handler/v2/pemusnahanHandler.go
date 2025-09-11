@@ -31,9 +31,8 @@ func (hdl *PemusnahanHandler) PemusnahanRoutes(router chi.Router) {
 		r.Post("/pemusnahan", hdl.Create)
 		r.Put("/pemusnahan/{id}", hdl.Update)
 		r.Delete("/pemusnahan/{id}", hdl.Delete)
-		r.Get("/pemusnahan/export", hdl.Export)
-
 	})
+	router.Get("/pemusnahan/export", hdl.Export)
 }
 
 func (hdl *PemusnahanHandler) GetAll(w http.ResponseWriter, r *http.Request) {

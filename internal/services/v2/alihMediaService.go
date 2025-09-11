@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/models/v2"
 	"github.com/cukiprit/api-sistem-alih-media-retensi/internal/repositories/v2"
+	"github.com/cukiprit/api-sistem-alih-media-retensi/pkg"
 	"github.com/xuri/excelize/v2"
 )
 
@@ -379,44 +379,56 @@ func (svc *alihMediaService) Export(ctx context.Context) ([]byte, error) {
 		log.Println("[Export] Tidak ada data alih_media")
 	}
 
-	f := excelize.NewFile()
-	sheet := "Sheet1"
-	f.SetSheetName(f.GetSheetName(0), sheet)
-
-	headers := []string{
-		"ID", "Tanggal Laporan", "Status", "Jenis Kunjungan",
-		"NoRM", "Nama Pasien", "Jenis Kelamin", "Tanggal Lahir",
-		"Alamat", "Status Pasien", "Jenis Kasus",
-		"Masa Aktif RI", "Masa Inaktif RI",
-		"Masa Aktif RJ", "Masa Inaktif RJ", "Info Lain",
+	f, err := excelize.OpenFile("./templates/alih-media-template.xlsx")
+	if err != nil {
+		return nil, fmt.Errorf("Failed to open template: %v", err)
 	}
-	for i, h := range headers {
-		col := string(rune('A' + i))
-		f.SetCellValue(sheet, col+"1", h)
+	defer f.Close()
+
+	sheetName := "Worksheet"
+	startRow := 6
+	endRow := 1000
+
+	for row := startRow; row <= endRow; row++ {
+		for col := 1; col <= 16; col++ { // 16 columns for alih media
+			cell, _ := excelize.CoordinatesToCellName(col, row)
+			f.SetCellValue(sheetName, cell, "")
+		}
 	}
 
 	for i, row := range data {
-		r := i + 2
-		f.SetCellValue(sheet, "A"+strconv.Itoa(r), row.ID)
+		rowNum := i + startRow
+
+		// Use pkg.GetCell for better maintainability
+		f.SetCellValue(sheetName, pkg.GetCell(1, rowNum), row.ID)
+
 		if row.TglLaporan != nil {
-			f.SetCellValue(sheet, "B"+strconv.Itoa(r), row.TglLaporan.Format("2006-01-02"))
+			f.SetCellValue(sheetName, pkg.GetCell(2, rowNum), row.TglLaporan.Format("2006-01-02"))
 		} else {
-			f.SetCellValue(sheet, "B"+strconv.Itoa(r), "-")
+			f.SetCellValue(sheetName, pkg.GetCell(2, rowNum), "-")
 		}
-		f.SetCellValue(sheet, "C"+strconv.Itoa(r), row.Status)
-		f.SetCellValue(sheet, "D"+strconv.Itoa(r), row.JenisKunjungan)
-		f.SetCellValue(sheet, "E"+strconv.Itoa(r), row.NoRM)
-		f.SetCellValue(sheet, "F"+strconv.Itoa(r), row.NamaPasien)
-		f.SetCellValue(sheet, "G"+strconv.Itoa(r), row.JenisKelamin)
-		f.SetCellValue(sheet, "H"+strconv.Itoa(r), row.TglLahir.Format("2006-01-02"))
-		f.SetCellValue(sheet, "I"+strconv.Itoa(r), row.Alamat)
-		f.SetCellValue(sheet, "J"+strconv.Itoa(r), row.StatusPasien)
-		f.SetCellValue(sheet, "K"+strconv.Itoa(r), row.JenisKasus)
-		f.SetCellValue(sheet, "L"+strconv.Itoa(r), row.MasaAktifRi)
-		f.SetCellValue(sheet, "M"+strconv.Itoa(r), row.MasaInaktifRi)
-		f.SetCellValue(sheet, "N"+strconv.Itoa(r), row.MasaAktifRj)
-		f.SetCellValue(sheet, "O"+strconv.Itoa(r), row.MasaInaktifRj)
-		f.SetCellValue(sheet, "P"+strconv.Itoa(r), row.InfoLain)
+
+		f.SetCellValue(sheetName, pkg.GetCell(3, rowNum), row.Status)
+		f.SetCellValue(sheetName, pkg.GetCell(4, rowNum), row.JenisKunjungan)
+		f.SetCellValue(sheetName, pkg.GetCell(5, rowNum), row.NoRM)
+		f.SetCellValue(sheetName, pkg.GetCell(6, rowNum), row.NamaPasien)
+		f.SetCellValue(sheetName, pkg.GetCell(7, rowNum), row.JenisKelamin)
+		f.SetCellValue(sheetName, pkg.GetCell(8, rowNum), row.TglLahir.Format("2006-01-02"))
+		f.SetCellValue(sheetName, pkg.GetCell(9, rowNum), row.Alamat)
+		f.SetCellValue(sheetName, pkg.GetCell(10, rowNum), row.StatusPasien)
+		f.SetCellValue(sheetName, pkg.GetCell(11, rowNum), row.JenisKasus)
+		f.SetCellValue(sheetName, pkg.GetCell(12, rowNum), row.MasaAktifRi)
+		f.SetCellValue(sheetName, pkg.GetCell(13, rowNum), row.MasaInaktifRi)
+		f.SetCellValue(sheetName, pkg.GetCell(14, rowNum), row.MasaAktifRj)
+		f.SetCellValue(sheetName, pkg.GetCell(15, rowNum), row.MasaInaktifRj)
+		f.SetCellValue(sheetName, pkg.GetCell(16, rowNum), row.InfoLain)
+
+		// Optional: Apply alternating row colors
+		// if i%2 == 0 {
+		// 	pkg.SetRowStyle(f, sheetName, rowNum, 16, "E2EFDA")
+		// } else {
+		// 	pkg.SetRowStyle(f, sheetName, rowNum, 16, "FFFFFF")
+		// }
 	}
 
 	buf, err := f.WriteToBuffer()

@@ -31,8 +31,8 @@ func (hdl *RetensiHandler) RetensiRoutes(router chi.Router) {
 		r.Post("/retensi", hdl.Create)
 		r.Put("/retensi/{id}", hdl.Update)
 		r.Delete("/retensi/{id}", hdl.Delete)
-		r.Get("/retensi/export", hdl.Export)
 	})
+	router.Get("/retensi/export", hdl.Export)
 }
 
 func (hdl *RetensiHandler) GetAll(w http.ResponseWriter, r *http.Request) {

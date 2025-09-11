@@ -31,8 +31,8 @@ func (hdl *AlihMediaHandler) AlihMediaRoutes(router chi.Router) {
 		r.Post("/alih-media", hdl.Create)
 		r.Put("/alih-media/{id}", hdl.Update)
 		r.Delete("/alih-media/{id}", hdl.Delete)
-		r.Get("/alih-media/export", hdl.Export)
 	})
+	router.Get("/alih-media/export", hdl.Export)
 }
 
 func (hdl *AlihMediaHandler) GetAll(w http.ResponseWriter, r *http.Request) {
