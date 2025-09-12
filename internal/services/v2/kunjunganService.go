@@ -16,6 +16,7 @@ type KunjunganService interface {
 	GetAll(ctx context.Context, page, perPage int) (*KunjunganPagination, error)
 	GetByID(ctx context.Context, id int) (*models.KunjunganJoin, error)
 	Create(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
+	Search(ctx context.Context, filter KunjunganFilter) ([]*models.KunjunganJoin, error)
 	Update(ctx context.Context, kunjungan models.Kunjungan) (*models.Kunjungan, error)
 	Delete(ctx context.Context, id int) error
 	Import(ctx context.Context, filePath string) error
@@ -45,6 +46,12 @@ type KunjunganPagination struct {
 	Page       int                     `json:"page"`
 	PerPage    int                     `json:"per_page"`
 	TotalPages int                     `json:"total_pages"`
+}
+
+type KunjunganFilter struct {
+	NoRM       string
+	NamaPasien string
+	Limit      int
 }
 
 func (svc *kunjunganService) GetAll(ctx context.Context, page, perPage int) (*KunjunganPagination, error) {
@@ -79,6 +86,30 @@ func (svc *kunjunganService) GetAll(ctx context.Context, page, perPage int) (*Ku
 		PerPage:    perPage,
 		TotalPages: totalPages,
 	}, nil
+}
+
+func (svc *kunjunganService) Search(ctx context.Context, filter KunjunganFilter) ([]*models.KunjunganJoin, error) {
+	filterMap := make(map[string]interface{})
+	if filter.NoRM != "" {
+		filterMap["NoRM"] = filter.NoRM
+	}
+	if filter.NamaPasien != "" {
+		filterMap["NamaPasien"] = filter.NamaPasien
+	}
+	if filter.Limit > 0 {
+		filterMap["Limit"] = filter.Limit
+	}
+
+	kunjungan, err := svc.repo.FindKunjungan(ctx, filterMap)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(kunjungan) == 0 {
+		return nil, errors.New("No pemusnahan found")
+	}
+
+	return kunjungan, nil
 }
 
 func (svc *kunjunganService) GetByID(ctx context.Context, id int) (*models.KunjunganJoin, error) {

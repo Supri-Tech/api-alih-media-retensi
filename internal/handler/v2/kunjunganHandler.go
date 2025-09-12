@@ -31,6 +31,7 @@ func (hdl *KunjunganHandler) KunjunganRoutes(router chi.Router) {
 		r.Use(middleware.VerifyToken)
 
 		r.Get("/kunjungan", hdl.GetAll)
+		r.Get("/kunjungan/search", hdl.Search)
 		r.Get("/kunjungan/{id}", hdl.GetByID)
 		r.Post("/kunjungan", hdl.Create)
 		r.Post("/kunjungan/import", hdl.Import)
@@ -51,6 +52,33 @@ func (hdl *KunjunganHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pkg.Success(w, "Data fetched successfully", kunjungan)
+}
+
+func (hdl *KunjunganHandler) Search(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	limit, _ := strconv.Atoi(query.Get("limit"))
+
+	filter := services.KunjunganFilter{
+		NoRM:       query.Get("NoRM"),
+		NamaPasien: query.Get("NamaPasien"),
+		Limit:      limit,
+	}
+
+	if filter.NoRM == "" && filter.NamaPasien == "" {
+		pkg.Error(w, http.StatusBadRequest, "At least one search parameter is required")
+		return
+	}
+
+	kunjungan, err := hdl.service.Search(r.Context(), filter)
+	if err != nil {
+		if err.Error() == "No pemusnahan found" {
+			pkg.Error(w, http.StatusNotFound, err.Error())
+		} else {
+			pkg.Error(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	pkg.Success(w, "Data found", kunjungan)
 }
 
 func (hdl *KunjunganHandler) GetByID(w http.ResponseWriter, r *http.Request) {

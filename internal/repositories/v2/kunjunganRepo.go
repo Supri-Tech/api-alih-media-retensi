@@ -21,6 +21,7 @@ type KunjunganRepository interface {
 	UpdateKunjunganStatus(ctx context.Context, id int, status string) error
 	GetActiveKunjungan(ctx context.Context) ([]*models.Kunjungan, error)
 	GetTotalActiveKunjungan(ctx context.Context) (int, error)
+	FindKunjungan(ctx context.Context, filter map[string]interface{}) ([]*models.KunjunganJoin, error)
 }
 
 type kunjunganRepository struct {
@@ -184,6 +185,106 @@ func (repo *kunjunganRepository) GetTotalKunjungan(ctx context.Context) (int, er
 		return 0, err
 	}
 	return count, nil
+}
+
+func (repo *kunjunganRepository) FindKunjungan(ctx context.Context, filter map[string]interface{}) ([]*models.KunjunganJoin, error) {
+	query := `
+	SELECT
+		kunjungan.Id,
+		pasien.Id AS IDPasien,
+		pasien.NamaPasien AS NamaPasien,
+		pasien.NoRM AS NoRM,
+		pasien.NIK AS NIK,
+		pasien.JenisKelamin AS JenisKelamin,
+		pasien.TglLahir AS TglLahir,
+		pasien.Alamat AS Alamat,
+		pasien.Status AS Status,
+		kunjungan.TglMasuk AS TglMasuk,
+		kunjungan.JenisKunjungan AS JenisKunjungan,
+		kasus.Id AS IDKasus,
+		kasus.JenisKasus AS JenisKasus,
+		kasus.MasaAktifRi AS MasaAktifRi,
+		kasus.MasaInaktifRi AS MasaInaktifRi,
+		kasus.MasaAktifRj AS MasaAktifRj,
+		kasus.MasaInaktifRj AS MasaInaktifRj,
+		kasus.InfoLain AS InfoLain,
+		dokumen.Path AS path
+	FROM kunjungan
+	INNER JOIN pasien ON pasien.Id = kunjungan.IdPasien
+	INNER JOIN kasus ON kasus.Id = kunjungan.IdKasus
+	LEFT JOIN dokumen ON dokumen.IdKunjungan = kunjungan.Id
+	WHERE 1=1
+	`
+
+	var args []interface{}
+
+	if noRM, ok := filter["NoRM"]; ok {
+		query += " AND pasien.NoRM LIKE ?"
+		args = append(args, "%"+noRM.(string)+"%")
+	}
+
+	if name, ok := filter["NamaPasien"]; ok {
+		query += " AND pasien.NamaPasien LIKE ?"
+		args = append(args, "%"+name.(string)+"%")
+	}
+
+	if limit, ok := filter["Limit"]; ok {
+		query += " LIMIT ?"
+		args = append(args, limit)
+	} else {
+		query += " LIMIT 100"
+	}
+
+	rows, err := repo.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var kunjungan []*models.KunjunganJoin
+	for rows.Next() {
+		var k models.KunjunganJoin
+		var path sql.NullString
+
+		err := rows.Scan(
+			&k.ID,
+			&k.IDPasien,
+			&k.NamaPasien,
+			&k.NoRM,
+			&k.NIK,
+			&k.JenisKelamin,
+			&k.TglLahir,
+			&k.Alamat,
+			&k.Status,
+			&k.TglMasuk,
+			&k.JenisKunjungan,
+			&k.IDKasus,
+			&k.JenisKasus,
+			&k.MasaAktifRi,
+			&k.MasaInaktifRi,
+			&k.MasaAktifRj,
+			&k.MasaInaktifRj,
+			&k.InfoLain,
+			&path,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		if path.Valid {
+			k.Dokumen = path.String
+		} else {
+			k.Dokumen = ""
+		}
+
+		kunjungan = append(kunjungan, &k)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return kunjungan, nil
 }
 
 func (repo *kunjunganRepository) GetKunjunganByID(ctx context.Context, id int) (*models.KunjunganJoin, error) {
